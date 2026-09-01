@@ -59,6 +59,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       forgetCode();
       socket.disconnect();
     }
+    // A bad or finished code would otherwise be retried forever by the backoff.
+    if (phase === 'error') socket.disconnect();
   }, [phase, code, socket]);
 
   // Answered questions fade out on their own so the list stays short.

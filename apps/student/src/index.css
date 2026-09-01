@@ -42,6 +42,14 @@ body {
   outline-offset: 2px;
 }
 
+/* Accented buttons keep their tint on hover — and, on touch devices, after the
+   tap leaves :hover stuck — where .lr-btn:hover would wash them out. */
+.lr-btn.lr-a-sky:hover { background: var(--lr-sky); }
+.lr-btn.lr-a-pink:hover { background: var(--lr-pink); }
+.lr-btn.lr-a-lavender:hover { background: var(--lr-lavender); }
+.lr-btn.lr-a-mint:hover { background: var(--lr-mint); }
+.lr-btn.lr-a-yellow:hover { background: var(--lr-yellow); }
+
 /* ---------- reaction cooldown ----------
    One shared per-student cooldown, drawn as a bar filling along the bottom of
    every reaction button. Pure CSS, so prefers-reduced-motion (handled in

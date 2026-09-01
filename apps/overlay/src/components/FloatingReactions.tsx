@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LIMITS, type ReactionType, type ReactionZone } from '@lr/shared';
 import { useBursts } from '../lib/SessionContext';
@@ -50,6 +50,10 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
   useBursts((burst) => {
     if (quiet) return; // still counted by the reducer, just not drawn
 
+    // Built outside the updater so React's double-invocation in StrictMode
+    // cannot spawn two items for one burst.
+    const fresh = spawn(burst.type, burst.count, recentPoints, zone);
+
     setItems((prev) => {
       if (prev.length >= MAX_ALIVE) {
         // Newest same-type item absorbs the burst.
@@ -67,9 +71,9 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
         // No same-type item to absorb it: retire the oldest to make room.
         const [oldest, ...rest] = prev;
         window.setTimeout(() => remove(oldest.key), 0);
-        return [...rest, spawn(burst.type, burst.count, recentPoints, zone)];
+        return [...rest, fresh];
       }
-      return [...prev, spawn(burst.type, burst.count, recentPoints, zone)];
+      return [...prev, fresh];
     });
   });
 
@@ -106,14 +110,14 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
               '--lr-rise': `${item.rise}px`,
               '--lr-drift': `${item.drift}px`,
               '--lr-life': `${item.lifeMs}ms`,
-            } as React.CSSProperties
+            } as CSSProperties
           }
           onAnimationEnd={() => remove(item.key)}
         >
           <span
             key={`${item.key}:${item.bumps}`}
             className={`lr-chip${item.bumps > 0 ? ' lr-pop' : ''}`}
-            style={{ ['--lr-chip-accent' as string]: reactionAccent(item.type) } as React.CSSProperties}
+            style={{ '--lr-chip-accent': reactionAccent(item.type) } as CSSProperties}
           >
             <FontAwesomeIcon icon={reactionIcon(item.type)} />
             {item.count > 1 && (
@@ -129,7 +133,7 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
 function spawn(
   type: ReactionType,
   count: number,
-  recentPoints: React.RefObject<{ x: number; y: number }[]>,
+  recentPoints: RefObject<{ x: number; y: number }[]>,
   zone: ReactionZone,
 ): FloatItem {
   const viewport = { width: window.innerWidth, height: window.innerHeight };

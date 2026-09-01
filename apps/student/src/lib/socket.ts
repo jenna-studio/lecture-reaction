@@ -55,18 +55,14 @@ export class SessionSocket {
   disconnect(): void {
     this.#creds = null;
     this.#clearTimers();
-    const ws = this.#ws;
-    this.#ws = null;
-    if (ws) {
-      ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
-      ws.close(1000, 'client left');
-    }
+    this.#detach();
     this.#setState('closed');
   }
 
   #open(nextState: Extract<ConnState, 'connecting' | 'reconnecting'>): void {
     if (!this.#creds) return;
     this.#clearTimers();
+    this.#detach();
     this.#setState(nextState);
 
     let ws: WebSocket;
@@ -104,6 +100,15 @@ export class SessionSocket {
     // `error` is always followed by `close`; letting close drive reconnect
     // keeps a single path.
     ws.onerror = () => {};
+  }
+
+  /** Drops any socket still around so a re-`connect` never leaves two open. */
+  #detach(): void {
+    const previous = this.#ws;
+    if (!previous) return;
+    this.#ws = null;
+    previous.onopen = previous.onmessage = previous.onerror = previous.onclose = null;
+    previous.close();
   }
 
   #scheduleReconnect(): void {
