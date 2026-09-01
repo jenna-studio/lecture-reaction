@@ -1,0 +1,27 @@
+{
+  "name": "lecture-reaction",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,student,overlay -c cyan,magenta,yellow \"pnpm -F @lr/server dev\" \"pnpm -F @lr/student dev\" \"pnpm -F @lr/overlay dev\"",
+    "dev:web": "concurrently -n server,student -c cyan,magenta \"pnpm -F @lr/server dev\" \"pnpm -F @lr/student dev\"",
+    "build": "pnpm -F @lr/shared build && pnpm -F @lr/student build && pnpm -F @lr/overlay build && pnpm -F @lr/server build",
+    "typecheck": "pnpm -r typecheck",
+    "tauri": "pnpm -F @lr/overlay tauri"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@tauri-apps/cli",
+      "core-js"
+    ]
+  }
+}

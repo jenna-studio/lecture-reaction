@@ -1,0 +1,161 @@
+/* ==================================================================
+   LECTURE REACT — retro pixel design system
+   Shared by the student web app and the professor overlay.
+   Plain CSS custom properties + a few component classes, so it works
+   with or without Tailwind utilities layered on top.
+   ================================================================== */
+
+:root {
+  /* palette */
+  --lr-bg:        #F7F6F1;
+  --lr-dark:      #282828;
+  --lr-sky:       #A9D8FF;
+  --lr-pink:      #FFB7D5;
+  --lr-lavender:  #C9B8FF;
+  --lr-mint:      #ACE8D3;
+  --lr-yellow:    #FFE49A;
+
+  --lr-muted:     #6E6A63;
+  --lr-line:      #282828;
+  --lr-surface:   #FFFFFF;
+
+  /* retro chrome */
+  --lr-border: 2px;
+  --lr-shadow: 4px 4px 0 var(--lr-dark);
+  --lr-shadow-sm: 2px 2px 0 var(--lr-dark);
+  --lr-radius: 3px;
+
+  --lr-font-pixel: 'Silkscreen', 'Courier New', monospace;
+  --lr-font-text: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  color-scheme: light;
+}
+
+.lr-pixel { font-family: var(--lr-font-pixel); letter-spacing: 0.02em; }
+.lr-text  { font-family: var(--lr-font-text); }
+
+/* ---------- surfaces ---------- */
+
+.lr-panel {
+  background: var(--lr-surface);
+  border: var(--lr-border) solid var(--lr-line);
+  border-radius: var(--lr-radius);
+  box-shadow: var(--lr-shadow);
+}
+
+/* Translucent variant for the overlay, so slides stay readable underneath. */
+.lr-panel-glass {
+  background: color-mix(in srgb, var(--lr-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: var(--lr-border) solid color-mix(in srgb, var(--lr-dark) 78%, transparent);
+  border-radius: var(--lr-radius);
+  box-shadow: var(--lr-shadow-sm);
+}
+
+/* ---------- buttons ---------- */
+
+.lr-btn {
+  font-family: var(--lr-font-pixel);
+  font-size: 12px;
+  line-height: 1;
+  padding: 12px 16px;
+  background: var(--lr-surface);
+  color: var(--lr-dark);
+  border: var(--lr-border) solid var(--lr-line);
+  border-radius: var(--lr-radius);
+  box-shadow: var(--lr-shadow-sm);
+  cursor: pointer;
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2), background 120ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lr-btn:hover  { background: color-mix(in srgb, var(--lr-bg) 60%, var(--lr-surface)); }
+.lr-btn:active,
+.lr-btn[data-pressed='true'] {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--lr-dark);
+}
+.lr-btn:focus-visible { outline: var(--lr-border) solid var(--lr-lavender); outline-offset: 2px; }
+.lr-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.lr-btn-primary { background: var(--lr-sky); }
+.lr-btn-danger  { background: var(--lr-pink); }
+.lr-btn-ghost   { background: transparent; box-shadow: none; }
+
+.lr-btn-lg { font-size: 14px; padding: 18px 20px; }
+
+/* ---------- accents ---------- */
+
+.lr-a-sky      { background: var(--lr-sky); }
+.lr-a-pink     { background: var(--lr-pink); }
+.lr-a-lavender { background: var(--lr-lavender); }
+.lr-a-mint     { background: var(--lr-mint); }
+.lr-a-yellow   { background: var(--lr-yellow); }
+
+/* ---------- class code display ---------- */
+
+.lr-code {
+  font-family: var(--lr-font-pixel);
+  font-size: 40px;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em; /* keeps the tracked-out string optically centered */
+  color: var(--lr-dark);
+}
+
+/* ---------- retro loading indicator ---------- */
+
+.lr-loader {
+  display: inline-flex;
+  gap: 3px;
+}
+.lr-loader > i {
+  width: 6px; height: 6px;
+  background: var(--lr-dark);
+  animation: lr-blink 900ms steps(1, end) infinite;
+}
+.lr-loader > i:nth-child(2) { animation-delay: 150ms; }
+.lr-loader > i:nth-child(3) { animation-delay: 300ms; }
+@keyframes lr-blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0.15 } }
+
+/* ---------- small pixel detail: dotted rule ---------- */
+
+.lr-rule {
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    to right, var(--lr-dark) 0 4px, transparent 4px 8px
+  );
+}
+
+/* ---------- motion ---------- */
+
+@keyframes lr-float-up {
+  0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  12%  { transform: translate(0, -6px) scale(1.12); opacity: 1; }   /* bounce in */
+  22%  { transform: translate(0, -2px) scale(1); opacity: 1; }
+  100% { transform: translate(var(--lr-drift, 0px), calc(-1 * var(--lr-rise, 260px))) scale(0.94); opacity: 0; }
+}
+
+@keyframes lr-slide-in-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes lr-slide-out-right {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(40px); opacity: 0; }
+}
+
+@keyframes lr-pop {
+  0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Reactions still need to be *seen*; they just appear and fade in place. */
+  .lr-float { animation: none !important; opacity: 1; }
+}

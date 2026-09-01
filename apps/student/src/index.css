@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+/* The shared design system enters the `components` layer so Tailwind utilities
+   can still override .lr-btn padding, sizing and colour on a case-by-case basis
+   (unlayered CSS would otherwise outrank every utility). */
+@import '@lr/shared/theme.css' layer(components);
+
+/* Palette + fonts as Tailwind tokens, mirroring theme.css so utilities and the
+   .lr-* component classes can be mixed freely. */
+@theme {
+  --color-lr-bg: #f7f6f1;
+  --color-lr-dark: #282828;
+  --color-lr-sky: #a9d8ff;
+  --color-lr-pink: #ffb7d5;
+  --color-lr-lavender: #c9b8ff;
+  --color-lr-mint: #ace8d3;
+  --color-lr-yellow: #ffe49a;
+  --color-lr-muted: #6e6a63;
+  --color-lr-surface: #ffffff;
+
+  --font-pixel: 'Silkscreen', 'Courier New', monospace;
+  --font-text: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html {
+  background: var(--lr-bg);
+  /* Codes and reaction labels must never be zoom-reflowed away on iOS. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--lr-bg);
+  color: var(--lr-dark);
+  font-family: var(--lr-font-text);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Keyboard focus must stay obvious on every control, not just .lr-btn. */
+:focus-visible {
+  outline: 2px solid var(--lr-lavender);
+  outline-offset: 2px;
+}
+
+/* ---------- reaction cooldown ----------
+   One shared per-student cooldown, drawn as a bar filling along the bottom of
+   every reaction button. Pure CSS, so prefers-reduced-motion (handled in
+   theme.css) collapses it instead of animating. */
+.lr-cooldown {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--lr-dark);
+  transform-origin: left center;
+  animation-name: lr-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes lr-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Cooling buttons stay legible — they are re-arming, not unavailable. */
+.lr-btn.lr-cooling:disabled {
+  opacity: 0.72;
+}
+
+/* ---------- transient feedback ---------- */
+
+.lr-fade-out {
+  animation: lr-fade-out 1100ms ease-out forwards;
+}
+
+@keyframes lr-fade-out {
+  0%,
+  55% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.lr-slide-down {
+  animation: lr-slide-down 220ms ease-out both;
+}
+
+@keyframes lr-slide-down {
+  from {
+    transform: translateY(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* An answered question is celebrated briefly, then removed by the provider. */
+.lr-resolved {
+  animation: lr-pop 260ms ease-out;
+}

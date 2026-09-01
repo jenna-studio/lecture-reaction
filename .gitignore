@@ -1,0 +1,6 @@
+node_modules
+dist
+.DS_Store
+*.log
+apps/overlay/src-tauri/target
+apps/overlay/src-tauri/gen
