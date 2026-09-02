@@ -1,2 +1,5 @@
 /target
-/gen/schemas
+# Tracked on purpose: tauri.conf.json's $schema points at it, so ignoring it
+# leaves a dangling reference (and a VS Code error) on a fresh clone.
+/gen/schemas/*
+!/gen/schemas/desktop-schema.json

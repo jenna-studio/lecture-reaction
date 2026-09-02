@@ -3,7 +3,11 @@ dist
 .DS_Store
 *.log
 apps/overlay/src-tauri/target
-apps/overlay/src-tauri/gen
+# Tauri regenerates gen/ on every build, but the JSON schema is referenced by
+# tauri.conf.json's $schema, so it is tracked — otherwise the reference dangles
+# on a fresh clone until someone runs a build.
+apps/overlay/src-tauri/gen/*
+!apps/overlay/src-tauri/gen/schemas/
 packages/shared/src/*.d.ts
 
 # Build artifacts of the bundled server sidecar (regenerate: pnpm build:server-binary)

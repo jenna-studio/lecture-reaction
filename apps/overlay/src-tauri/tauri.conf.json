@@ -1,5 +1,5 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
+  "$schema": "schemas/tauri-config.schema.json",
   "productName": "Lecture React",
   "version": "0.1.0",
   "identifier": "com.lecturereact.overlay",
@@ -18,7 +18,7 @@
         "url": "index.html?window=launcher",
         "title": "Lecture React",
         "width": 420,
-        "height": 300,
+        "height": 550,
         "resizable": false,
         "maximizable": false,
         "fullscreen": false,
