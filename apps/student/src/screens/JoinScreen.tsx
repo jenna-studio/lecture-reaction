@@ -1,15 +1,46 @@
-import { useState } from 'react';
-import { isPlausibleCode, LIMITS } from '@lr/shared';
+import { useEffect, useRef, useState } from 'react';
+import { isPlausibleCode, LIMITS, normalizeCode } from '@lr/shared';
 import { CodeInput } from '../components/CodeInput';
 import { MessageStrip } from '../components/MessageStrip';
 import { getRememberedCode } from '../lib/storage';
 import { useSession } from '../state/SessionProvider';
 import type { Notice } from '../state/reducer';
 
+/**
+ * A code handed to us in the URL, e.g. `?c=K7M4P`.
+ *
+ * This is how the QR code and a pasted invite link work: the student should
+ * land already joined, not on an empty form. Read once at module scope so a
+ * re-render never re-triggers the auto-join.
+ */
+function codeFromUrl(): string {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('c');
+    return raw ? normalizeCode(raw).slice(0, LIMITS.codeLength) : '';
+  } catch {
+    return '';
+  }
+}
+
 export function JoinScreen() {
   const { state, conn, join, clearNotice } = useSession();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(codeFromUrl);
   const [remembered] = useState(getRememberedCode);
+  const autoJoined = useRef(false);
+
+  // Arriving from a QR scan or an invite link: join immediately. Only ever
+  // once — if the code turns out to be wrong the student stays on the form
+  // with the error rather than being thrown into a retry loop.
+  useEffect(() => {
+    if (autoJoined.current) return;
+    const fromUrl = codeFromUrl();
+    if (!isPlausibleCode(fromUrl)) return;
+    autoJoined.current = true;
+    join(fromUrl);
+    // Drop the query so a refresh (or a shared screenshot of the URL bar)
+    // does not silently re-join a class the student has left.
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [join]);
 
   const joining = state.phase === 'joining';
   const ready = isPlausibleCode(code);

@@ -83,6 +83,13 @@ export function SessionProvider({
   const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
   const socketRef = useRef<ProfessorSocket | null>(null);
   const burstListeners = useRef(new Set<BurstListener>());
+  /**
+   * The session this window is currently attached to (or is mid-handshake for).
+   * The resume watcher compares it against what the launcher has persisted, so
+   * a *second* class started after the first one ends is picked up instead of
+   * leaving the overlay showing a dead code.
+   */
+  const attachedSessionId = useRef<string | null>(null);
 
   const handleMessage = useCallback((msg: ServerMsg) => {
     if (msg.t === 'reaction:burst') {
@@ -91,6 +98,7 @@ export function SessionProvider({
       }
     }
     if (msg.t === 'session:created') {
+      attachedSessionId.current = msg.sessionId;
       const persisted: PersistedSession = {
         sessionId: msg.sessionId,
         token: msg.token,
@@ -99,10 +107,12 @@ export function SessionProvider({
       writeJson(STORAGE_KEYS.session, persisted);
     }
     if (msg.t === 'session:ended') {
+      attachedSessionId.current = null;
       removeKey(STORAGE_KEYS.session);
     }
     if (msg.t === 'error' && (msg.code === 'unauthorized' || msg.code === 'session_ended')) {
       // A stale resume token would otherwise be replayed forever.
+      attachedSessionId.current = null;
       removeKey(STORAGE_KEYS.session);
     }
     dispatch({ type: 'server', msg });
@@ -130,18 +140,26 @@ export function SessionProvider({
       const attach = () => {
         const saved = readJson<PersistedSession | null>(STORAGE_KEYS.session, null);
         if (!saved?.sessionId || !saved.token) return;
-        window.clearInterval(poll);
-        poll = undefined;
+        // Already on this class (or handshaking for it) — nothing to do.
+        if (attachedSessionId.current === saved.sessionId) return;
+        // A different class than the one we hold: drop the old socket first so
+        // the server never sees two professor connections for one session.
+        socketRef.current?.dispose();
+        socketRef.current = null;
+        attachedSessionId.current = saved.sessionId;
         startClass();
       };
       attach();
-      if (!socketRef.current) poll = window.setInterval(attach, RESUME_POLL_MS);
+      // Deliberately never cleared: the professor may end a class and start
+      // another one without the overlay window ever being torn down.
+      poll = window.setInterval(attach, RESUME_POLL_MS);
     }
 
     return () => {
       if (poll !== undefined) window.clearInterval(poll);
       socketRef.current?.dispose();
       socketRef.current = null;
+      attachedSessionId.current = null;
     };
   }, [connect, startClass]);
 

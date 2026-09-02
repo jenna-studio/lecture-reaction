@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "smoke": "node test/smoke.mjs",
-    "simulate": "node test/simulate-class.mjs"
+    "simulate": "node test/simulate-class.mjs",
+    "test:lan": "node --experimental-strip-types test/lan.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0",

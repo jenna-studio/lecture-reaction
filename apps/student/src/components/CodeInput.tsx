@@ -50,6 +50,10 @@ export function CodeInput({ value, onChange, onSubmit, disabled }: Props) {
           }
         }}
         type="text"
+        // The join screen has exactly one action; land the caret in the field.
+        // (iOS won't raise the keyboard without a gesture, which is fine —
+        // the first tap anywhere on the boxes still does.)
+        autoFocus
         inputMode="text"
         autoCapitalize="characters"
         autoComplete="off"

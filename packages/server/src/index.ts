@@ -8,13 +8,13 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { networkInterfaces } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { normalizeCode } from '@lr/shared';
 import { Hub, type Role } from './hub.js';
 import { StaticSite } from './static.js';
+import { lanAddress, rankLanCandidates } from './lan.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = '0.0.0.0';
@@ -49,6 +49,8 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (pathname === '/api/join-url') {
+    // Recomputed per request, never cached: the professor may join the room's
+    // Wi-Fi after the server started, or move rooms between classes.
     const lanIp = lanAddress();
     const host = lanIp ?? 'localhost';
     return json(res, 200, {
@@ -56,6 +58,8 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       wsUrl: `ws://${host}:${PORT}/ws`,
       lanIp,
       port: PORT,
+      /** Every reachable-looking address, best first — for diagnostics and manual override. */
+      candidates: rankLanCandidates(),
     });
   }
 
@@ -108,22 +112,25 @@ httpServer.on('upgrade', (req, socket, head) => {
 /* Boot                                                                */
 /* ------------------------------------------------------------------ */
 
-/** First non-internal IPv4 — the address phones on the LAN can reach. */
-function lanAddress(): string | null {
-  for (const addrs of Object.values(networkInterfaces())) {
-    for (const addr of addrs ?? []) {
-      if (addr.family === 'IPv4' && !addr.internal) return addr.address;
-    }
-  }
-  return null;
-}
-
 httpServer.listen(PORT, HOST, () => {
   const lan = lanAddress();
+  const candidates = rankLanCandidates();
   console.log(`[lecture-react] listening on http://${HOST}:${PORT}`);
   console.log(`[lecture-react] local:    http://localhost:${PORT}`);
-  if (lan) console.log(`[lecture-react] students open: http://${lan}:${PORT}`);
-  else console.log('[lecture-react] no LAN address found — phones may not be able to connect.');
+  if (lan) {
+    console.log(`[lecture-react] students open: http://${lan}:${PORT}`);
+  } else {
+    console.log('[lecture-react] no LAN address found — phones may not be able to connect.');
+  }
+  // Show what was rejected and why: on a machine with VM bridges or a VPN the
+  // automatic pick is the difference between a working class and a dead URL.
+  if (candidates.length > 1) {
+    console.log('[lecture-react] other addresses seen (not chosen):');
+    for (const c of candidates.slice(1)) {
+      console.log(`[lecture-react]   ${c.iface} ${c.address} — ${c.note}`);
+    }
+    console.log('[lecture-react] override with LECTURE_LAN_IP=<address> if the pick is wrong.');
+  }
   console.log(
     site.available
       ? `[lecture-react] serving student app from ${STUDENT_DIST}`

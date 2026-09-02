@@ -19,7 +19,9 @@ export function resolveSocketUrl(): string {
   const override = import.meta.env.VITE_SERVER_URL;
   const base = new URL(override ?? window.location.href, window.location.href);
   const secure = base.protocol === 'https:' || base.protocol === 'wss:';
-  return `${secure ? 'wss:' : 'ws:'}//${base.host}/ws`;
+  // The server rejects any upgrade without a valid role, so it is part of the
+  // URL, not something the first frame can carry.
+  return `${secure ? 'wss:' : 'ws:'}//${base.host}/ws?role=student`;
 }
 
 type MessageListener = (msg: ServerMsg) => void;
