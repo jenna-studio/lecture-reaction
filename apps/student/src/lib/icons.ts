@@ -1,8 +1,8 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
-  faBackward,
   faCheck,
   faForward,
+  faHeart,
   faLightbulb,
   faQuestion,
   faRotateLeft,
@@ -14,7 +14,7 @@ const ICONS: Record<string, IconDefinition> = {
   check: faCheck,
   question: faQuestion,
   forward: faForward,
-  backward: faBackward,
+  heart: faHeart,
   'rotate-left': faRotateLeft,
   lightbulb: faLightbulb,
 };

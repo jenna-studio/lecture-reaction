@@ -19,9 +19,16 @@ import { lanAddress, rankLanCandidates } from './lan.js';
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = '0.0.0.0';
 
-const here = dirname(fileURLToPath(import.meta.url));
-/** packages/server/src -> repo root -> apps/student/dist */
-const STUDENT_DIST = resolve(here, '../../../apps/student/dist');
+/**
+ * Where the built student app lives.
+ *
+ * In the repo this is resolved relative to this file. Inside the packaged
+ * desktop app there is no source tree — and no `import.meta.url`, since the
+ * bundle is CommonJS — so the host passes the path in instead.
+ */
+const STUDENT_DIST = process.env.LECTURE_STUDENT_DIST
+  ? resolve(process.env.LECTURE_STUDENT_DIST)
+  : resolve(dirname(fileURLToPath(import.meta.url)), '../../../apps/student/dist');
 
 const hub = new Hub();
 const site = new StaticSite(STUDENT_DIST);

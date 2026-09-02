@@ -8,7 +8,12 @@ export interface OverlaySettings {
   quiet: boolean;
 }
 
-export const DEFAULT_SETTINGS: OverlaySettings = { zone: 'both', quiet: false };
+/**
+ * Bottom band by default: reactions rise from under the slide rather than
+ * alongside it, which keeps them furthest from the content the class is
+ * actually reading. Left / Both remain available in the overlay's settings.
+ */
+export const DEFAULT_SETTINGS: OverlaySettings = { zone: 'bottom', quiet: false };
 
 export function loadSettings(): OverlaySettings {
   const saved = readJson<Partial<OverlaySettings>>(STORAGE_KEYS.settings, {});

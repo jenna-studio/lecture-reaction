@@ -5,6 +5,8 @@ import { config } from '@fortawesome/fontawesome-svg-core';
 import '@fontsource/silkscreen/400.css';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/700.css';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import './index.css';
 

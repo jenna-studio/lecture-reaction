@@ -45,11 +45,15 @@ export function ReactionGrid({ onSend, cooldownUntil, disabled }: Props) {
               onClick={() => handle(type)}
               disabled={blocked}
               aria-label={meta.meaning}
-              className={`lr-btn relative flex min-h-[84px] flex-col items-center justify-center gap-2 overflow-hidden px-1 py-3 ${accentClass(
+              className={`lr-btn relative flex min-h-[92px] flex-col items-center justify-center gap-2 overflow-hidden px-1 py-3 lg:min-h-[104px] ${accentClass(
                 meta.accent,
               )} ${cooling && !disabled ? 'lr-cooling' : ''}`}
             >
-              <FontAwesomeIcon icon={reactionIcon(type)} className="text-[20px]" aria-hidden="true" />
+              <FontAwesomeIcon
+                icon={reactionIcon(type)}
+                className="text-[26px] lg:text-[30px]"
+                aria-hidden="true"
+              />
               <span className="font-pixel text-[10px] leading-tight text-lr-dark">{meta.label}</span>
               {cooling && (
                 <span

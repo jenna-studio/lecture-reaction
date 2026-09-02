@@ -18,7 +18,7 @@ export const REACTION_TYPES = [
   'understand',
   'confused',
   'too_fast',
-  'too_slow',
+  'love',
   'again',
   'interesting',
 ] as const;
@@ -35,7 +35,7 @@ export const REACTION_META: Record<
   understand:  { label: 'Understand',  meaning: 'I understand this.',         icon: 'check',       accent: 'mint' },
   confused:    { label: 'Confused',    meaning: "I'm confused.",              icon: 'question',    accent: 'pink' },
   too_fast:    { label: 'Too Fast',    meaning: "You're going too fast.",     icon: 'forward',     accent: 'sky' },
-  too_slow:    { label: 'Too Slow',    meaning: "You're going too slowly.",   icon: 'backward',    accent: 'lavender' },
+  love:        { label: 'Love It',     meaning: 'I love this.',               icon: 'heart',       accent: 'lavender' },
   again:       { label: 'Again',       meaning: 'Please explain that again.', icon: 'rotate-left', accent: 'sky' },
   interesting: { label: 'Interesting', meaning: 'This is interesting.',       icon: 'lightbulb',   accent: 'yellow' },
 };

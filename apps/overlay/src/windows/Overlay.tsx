@@ -11,6 +11,7 @@ import {
   setInteractionMode,
 } from '../lib/desktop';
 import { loadSettings, saveSettings, type OverlaySettings } from '../lib/settings';
+import { fetchJoinBase, joinUrl } from '../lib/server';
 import { ControlStrip } from '../components/ControlStrip';
 import { FloatingReactions } from '../components/FloatingReactions';
 import { PollPanel } from '../components/PollPanel';
@@ -29,6 +30,26 @@ export function Overlay() {
   const [pollExpanded, setPollExpanded] = useState(true);
   // True while a control-strip popover is open; the poll panel lifts clear of it.
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [joinBase, setJoinBase] = useState<string | null>(null);
+
+  // Same continuous check as the launcher: the address students need can change
+  // mid-lecture if the professor's network does.
+  useEffect(() => {
+    let controller = new AbortController();
+    const refresh = () => {
+      controller.abort();
+      controller = new AbortController();
+      void fetchJoinBase(controller.signal).then(setJoinBase);
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 10_000);
+    window.addEventListener('online', refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener('online', refresh);
+    };
+  }, []);
 
   // Click-through hit-testing lives here; see lib/clickThrough.ts.
   useClickThrough(fullInteraction);
@@ -128,6 +149,7 @@ export function Overlay() {
         onCustomPoll={(question, options) => startPoll('custom', question, options)}
         pollMinimized={Boolean(state.poll) && !pollExpanded}
         onExpandPoll={() => setPollExpanded(true)}
+        shareUrl={joinBase && state.code ? joinUrl(joinBase, state.code) : null}
         onPopoverToggle={setPopoverOpen}
         onEndClass={onEndClass}
       />

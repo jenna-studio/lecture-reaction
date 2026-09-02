@@ -27,12 +27,17 @@
 
   --lr-font-pixel: 'Silkscreen', 'Courier New', monospace;
   --lr-font-text: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Class codes are read aloud, typed on a phone and squinted at from the back
+     row, so they get a real monospace rather than the pixel face: unambiguous
+     glyphs, even spacing, no decorative noise. */
+  --lr-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   color-scheme: light;
 }
 
 .lr-pixel { font-family: var(--lr-font-pixel); letter-spacing: 0.02em; }
 .lr-text  { font-family: var(--lr-font-text); }
+.lr-mono  { font-family: var(--lr-font-mono); font-weight: 700; }
 
 /* ---------- surfaces ---------- */
 
@@ -96,10 +101,12 @@
 /* ---------- class code display ---------- */
 
 .lr-code {
-  font-family: var(--lr-font-pixel);
-  font-size: 40px;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em; /* keeps the tracked-out string optically centered */
+  font-family: var(--lr-font-mono);
+  font-weight: 700;
+  font-size: 44px;
+  /* Tighter than the pixel face needed — the mono glyphs already separate. */
+  letter-spacing: 0.16em;
+  text-indent: 0.16em; /* keeps the tracked-out string optically centered */
   color: var(--lr-dark);
 }
 

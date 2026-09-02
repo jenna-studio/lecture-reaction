@@ -12,6 +12,9 @@ import {
   faEye,
   faEyeSlash,
   faGear,
+  faLink,
+  faQrcode,
+  faCheck,
   faQuestion,
   faRightFromBracket,
 } from '@fortawesome/free-solid-svg-icons';
@@ -22,8 +25,9 @@ import { clamp } from '../lib/spawn';
 import { readJson, STORAGE_KEYS, writeJson } from '../lib/storage';
 import { PollComposer } from './PollComposer';
 import { Popup } from './Popup';
+import { QrCanvas } from './QrCanvas';
 
-type Popover = 'none' | 'settings' | 'end' | 'composer';
+type Popover = 'none' | 'settings' | 'end' | 'composer' | 'qr';
 
 interface Point {
   x: number;
@@ -51,6 +55,8 @@ export interface ControlStripProps {
   pollMinimized: boolean;
   onExpandPoll: () => void;
   onEndClass: () => void;
+  /** Full join URL (address + code) for the share controls. */
+  shareUrl: string | null;
   /** Lets the overlay lift the poll panel clear of an open popover. */
   onPopoverToggle?: (open: boolean) => void;
 }
@@ -185,7 +191,7 @@ export function ControlStrip(props: ControlStripProps) {
         onClick={toggleCollapsed}
         title={collapsed ? 'Expand controls' : 'Collapse controls'}
       >
-        [ {code ?? '·····'} ]
+        [ <span className="lr-mono tracking-[0.12em]">{code ?? '·····'}</span> ]
       </button>
 
       {!collapsed && (
@@ -260,7 +266,16 @@ export function ControlStrip(props: ControlStripProps) {
       )}
 
       {popover === 'settings' && (
-        <SettingsPopover settings={settings} onChange={onSettingsChange} />
+        <SettingsPopover
+          settings={settings}
+          onChange={onSettingsChange}
+          shareUrl={props.shareUrl}
+          onShowQr={() => setPopover('qr')}
+        />
+      )}
+
+      {popover === 'qr' && props.shareUrl && (
+        <QrPopover url={props.shareUrl} onClose={() => setPopover('settings')} />
       )}
 
       {popover === 'end' && (
@@ -312,10 +327,16 @@ function ConnectionDot({ reconnecting }: { reconnecting: boolean }) {
 function SettingsPopover({
   settings,
   onChange,
+  shareUrl,
+  onShowQr,
 }: {
+  shareUrl: string | null;
+  onShowQr: () => void;
   settings: OverlaySettings;
   onChange: (next: OverlaySettings) => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
   const zones: { value: ReactionZone; label: string }[] = [
     { value: 'left', label: 'Left' },
     { value: 'bottom', label: 'Bottom' },
@@ -351,6 +372,61 @@ function SettingsPopover({
         />
         Quiet Mode
       </label>
+
+      {/* Latecomers are the reason this lives here: once the overlay is up the
+          launcher is hidden, and the professor should not have to dig it out
+          to re-share the link. */}
+      <div className="lr-rule my-2" />
+      <p className="lr-pixel text-[10px] tracking-[0.1em] mb-1.5">SHARE WITH CLASS</p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          data-lr-interactive="true"
+          className="lr-btn lr-interactive px-2! py-1.5! text-[11px]!"
+          disabled={!shareUrl}
+          title={shareUrl ?? 'Working out the address students should use…'}
+          onClick={() => {
+            if (shareUrl) void navigator.clipboard?.writeText(shareUrl).catch(() => undefined);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1400);
+          }}
+        >
+          <FontAwesomeIcon icon={copied ? faCheck : faLink} className="mr-1.5" />
+          {copied ? 'Copied' : 'Copy Link'}
+        </button>
+        <button
+          type="button"
+          data-lr-interactive="true"
+          className="lr-btn lr-interactive px-2! py-1.5! text-[11px]!"
+          onClick={onShowQr}
+        >
+          <FontAwesomeIcon icon={faQrcode} className="mr-1.5" />
+          Show QR
+        </button>
+      </div>
+    </Popup>
+  );
+}
+
+/**
+ * The join QR, shown from the settings popover so a latecomer can be waved in
+ * mid-lecture without leaving the overlay.
+ */
+function QrPopover({ url, onClose }: { url: string; onClose: () => void }) {
+  return (
+    <Popup>
+      <div className="flex flex-col items-center gap-2">
+        {/* QrCanvas prints the URL beneath itself, so no caption here. */}
+        <QrCanvas value={url} />
+        <button
+          type="button"
+          data-lr-interactive="true"
+          className="lr-btn lr-btn-ghost lr-interactive px-2! py-1! text-[11px]!"
+          onClick={onClose}
+        >
+          Back
+        </button>
+      </div>
     </Popup>
   );
 }

@@ -4,3 +4,9 @@ dist
 *.log
 apps/overlay/src-tauri/target
 apps/overlay/src-tauri/gen
+packages/shared/src/*.d.ts
+
+# Build artifacts of the bundled server sidecar (regenerate: pnpm build:server-binary)
+apps/overlay/src-tauri/binaries/
+apps/overlay/src-tauri/.sea/
+tools/.cache/

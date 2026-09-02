@@ -37,7 +37,7 @@
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
 };
 use std::time::Duration;
 
@@ -326,6 +326,76 @@ fn toggle_quiet_shortcut() -> Shortcut {
 /* Entry point                                                         */
 /* ------------------------------------------------------------------ */
 
+
+/* ------------------------------------------------------------------ */
+/* Bundled realtime server                                             */
+/* ------------------------------------------------------------------ */
+
+/// Port the server listens on, matching the frontend's default origin.
+const SERVER_PORT: u16 = 8787;
+
+/// Handle to the server we started, so it dies with the app rather than
+/// lingering and holding the port.
+struct ServerProcess(Mutex<Option<std::process::Child>>);
+
+/// True when something already answers on the server port — a `pnpm dev`
+/// session, or a second copy of the app. Starting another would just fail to
+/// bind and leave a confusing error, so we attach to the running one instead.
+fn server_already_running() -> bool {
+    std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::from(([127, 0, 0, 1], SERVER_PORT)),
+        std::time::Duration::from_millis(300),
+    )
+    .is_ok()
+}
+
+/// Starts the bundled server sidecar.
+///
+/// The binary is a self-contained Node SEA build placed next to this
+/// executable by Tauri's `externalBin`. In a `tauri dev` run it is absent,
+/// which is fine: the dev server is already running.
+fn start_server(app: &AppHandle) -> Option<std::process::Child> {
+    if server_already_running() {
+        println!("[lecture-react] realtime server already running on {SERVER_PORT}");
+        return None;
+    }
+
+    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let binary = exe_dir.join(if cfg!(windows) { "lr-server.exe" } else { "lr-server" });
+    if !binary.exists() {
+        eprintln!(
+            "[lecture-react] no bundled server at {} — expecting a dev server on {SERVER_PORT}",
+            binary.display()
+        );
+        return None;
+    }
+
+    // The packaged server cannot locate the student app relative to its own
+    // source, so it is told where the bundled copy lives.
+    let student_dist = app
+        .path()
+        .resource_dir()
+        .map(|dir| dir.join("student"))
+        .ok();
+
+    let mut cmd = std::process::Command::new(&binary);
+    cmd.env("PORT", SERVER_PORT.to_string());
+    if let Some(dist) = student_dist {
+        cmd.env("LECTURE_STUDENT_DIST", dist);
+    }
+
+    match cmd.spawn() {
+        Ok(child) => {
+            println!("[lecture-react] started bundled server (pid {})", child.id());
+            Some(child)
+        }
+        Err(err) => {
+            eprintln!("[lecture-react] could not start bundled server: {err}");
+            None
+        }
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .manage(OverlayState::default())
@@ -365,8 +435,17 @@ pub fn run() {
             hide_launcher,
             quit_app,
         ])
+        .manage(ServerProcess(Mutex::new(None)))
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // Start the realtime server before anything tries to connect.
+            let child = start_server(&handle);
+            if let Some(state) = app.try_state::<ServerProcess>() {
+                if let Ok(mut slot) = state.0.lock() {
+                    *slot = child;
+                }
+            }
 
             // Registration failures (another app owns the combo) must not stop
             // the class from starting — the on-screen controls still work.
@@ -384,6 +463,21 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Lecture React");
+        .build(tauri::generate_context!())
+        .expect("error while building Lecture React")
+        .run(|handle, event| {
+            // Never leave the server running after the window closes: it would
+            // hold port 8787 and the next launch would silently attach to a
+            // server with no class in it.
+            if matches!(event, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
+                if let Some(state) = handle.try_state::<ServerProcess>() {
+                    if let Ok(mut slot) = state.0.lock() {
+                        if let Some(mut child) = slot.take() {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                        }
+                    }
+                }
+            }
+        });
 }
