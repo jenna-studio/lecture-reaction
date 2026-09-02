@@ -31,10 +31,11 @@ export function Launcher() {
   // Handed off: no socket, so poll the server when this window comes back into
   // view to notice that the class was ended from the overlay.
   useEffect(() => {
-    if (!handedOff || !state.code) return;
+    const code = state.code;
+    if (!handedOff || !code) return;
     const check = () => {
       if (document.visibilityState !== 'visible') return;
-      void fetchSessionStatus(state.code as string).then((result) => {
+      void fetchSessionStatus(code).then((result) => {
         if (result && (!result.exists || result.status === 'ended')) {
           setHandedOff(false);
           setStarting(false);

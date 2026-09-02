@@ -60,13 +60,25 @@ export interface SessionApi {
 
 const SessionCtx = createContext<SessionApi | null>(null);
 
+export type ConnectMode =
+  /** Wait for an explicit `startClass()` — the launcher's START CLASS button. */
+  | 'manual'
+  /**
+   * Wait until the launcher has persisted a session, then attach to THAT class
+   * with a resume handshake. The overlay window exists (hidden) from app start,
+   * so connecting eagerly would open a second, empty session.
+   */
+  | 'resume';
+
+/** How often the overlay checks whether a class has been started. */
+const RESUME_POLL_MS = 400;
+
 export function SessionProvider({
   children,
-  autoConnect = false,
+  connect = 'manual',
 }: {
   children: ReactNode;
-  /** The overlay connects immediately; the launcher waits for START CLASS. */
-  autoConnect?: boolean;
+  connect?: ConnectMode;
 }) {
   const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
   const socketRef = useRef<ProfessorSocket | null>(null);
@@ -112,12 +124,26 @@ export function SessionProvider({
   }, [handleMessage]);
 
   useEffect(() => {
-    if (autoConnect) startClass();
+    let poll: number | undefined;
+
+    if (connect === 'resume') {
+      const attach = () => {
+        const saved = readJson<PersistedSession | null>(STORAGE_KEYS.session, null);
+        if (!saved?.sessionId || !saved.token) return;
+        window.clearInterval(poll);
+        poll = undefined;
+        startClass();
+      };
+      attach();
+      if (!socketRef.current) poll = window.setInterval(attach, RESUME_POLL_MS);
+    }
+
     return () => {
+      if (poll !== undefined) window.clearInterval(poll);
       socketRef.current?.dispose();
       socketRef.current = null;
     };
-  }, [autoConnect, startClass]);
+  }, [connect, startClass]);
 
   const disconnect = useCallback(() => {
     socketRef.current?.dispose();

@@ -10,7 +10,7 @@ import { Overlay } from './windows/Overlay';
 export function App({ role }: { role: WindowRole }) {
   if (role === 'overlay') {
     return (
-      <SessionProvider autoConnect>
+      <SessionProvider connect="resume">
         <Overlay />
       </SessionProvider>
     );

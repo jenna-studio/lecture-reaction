@@ -50,10 +50,16 @@ export function PollPanel({
   results,
   onMinimize,
   onClose,
+  raised = false,
 }: {
   results: PollResultsView;
   onMinimize: () => void;
   onClose: () => void;
+  /**
+   * The control strip's popovers open upward from the same bottom-left corner.
+   * When one is open the panel lifts clear of it instead of being half-covered.
+   */
+  raised?: boolean;
 }) {
   const rows = rowsFor(results);
   const title = results.kind === 'understanding' ? 'UNDERSTANDING' : results.question;
@@ -61,7 +67,9 @@ export function PollPanel({
   return (
     <section
       data-lr-interactive="true"
-      className="lr-panel-glass lr-interactive fixed z-30 bottom-24 left-6 w-[300px] px-3 py-2"
+      className={`lr-panel-glass lr-interactive fixed z-30 left-6 w-[300px] px-3 py-2 transition-[bottom] duration-200 ${
+        raised ? 'bottom-[19rem]' : 'bottom-24'
+      }`}
       aria-label="Poll results"
     >
       <header className="flex items-start justify-between gap-2">
@@ -70,7 +78,7 @@ export function PollPanel({
           <button
             type="button"
             data-lr-interactive="true"
-            className="lr-btn lr-btn-ghost lr-interactive !p-1 !text-[10px]"
+            className="lr-btn lr-btn-ghost lr-interactive p-1! text-[10px]!"
             aria-label="Minimize results"
             onClick={onMinimize}
           >
@@ -79,7 +87,7 @@ export function PollPanel({
           <button
             type="button"
             data-lr-interactive="true"
-            className="lr-btn lr-btn-ghost lr-interactive !p-1 !text-[10px]"
+            className="lr-btn lr-btn-ghost lr-interactive p-1! text-[10px]!"
             aria-label="End poll"
             onClick={onClose}
           >

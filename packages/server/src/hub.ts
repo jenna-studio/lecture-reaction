@@ -16,6 +16,7 @@ import {
   normalizeCode,
   type ClientMsg,
   type ErrorCode,
+  type LimitScope,
   type PollKind,
   type ServerMsg,
 } from '@lr/shared';
@@ -431,7 +432,7 @@ export class Hub {
     if (!isReactionType(type)) return this.fail(ws, 'bad_request');
 
     const nextAllowedAt = this.store.tryReaction(session, anonId);
-    if (nextAllowedAt === null) return this.fail(ws, 'rate_limited');
+    if (nextAllowedAt === null) return this.fail(ws, 'rate_limited', 'reaction');
 
     this.safeSend(ws, { t: 'reaction:ack', type, nextAllowedAt });
     this.bursts.add(session.id, type);
@@ -445,7 +446,7 @@ export class Hub {
     if (text.length > LIMITS.questionMaxChars) return this.fail(ws, 'too_long');
 
     const result = this.store.addQuestion(session, anonId, text);
-    if (!result.ok) return this.fail(ws, result.reason);
+    if (!result.ok) return this.fail(ws, result.reason, 'question');
 
     this.broadcastQuestion(session, result.question);
   }
@@ -455,7 +456,7 @@ export class Hub {
 
     const result = this.store.voteQuestion(session, anonId, questionId);
     if (!result.ok) {
-      return this.fail(ws, result.reason === 'duplicate_vote' ? 'duplicate_vote' : 'bad_request');
+      return this.fail(ws, result.reason === 'duplicate_vote' ? 'duplicate_vote' : 'bad_request', 'vote');
     }
     this.broadcastQuestion(session, result.question);
   }
@@ -616,8 +617,8 @@ export class Hub {
   /* Send primitives                                                   */
   /* ---------------------------------------------------------------- */
 
-  private fail(ws: WebSocket, code: ErrorCode): void {
-    this.safeSend(ws, { t: 'error', code, message: ERROR_MESSAGES[code] });
+  private fail(ws: WebSocket, code: ErrorCode, scope?: LimitScope): void {
+    this.safeSend(ws, { t: 'error', code, message: ERROR_MESSAGES[code], scope });
   }
 
   private safeSend(ws: WebSocket, msg: ServerMsg): void {

@@ -82,6 +82,7 @@ html.lr-role-overlay #root {
 /* ---------- pixel-stepped poll bars --------------------------------- */
 
 .lr-bar-track {
+  display: block;
   height: 12px;
   border: 2px solid var(--lr-dark);
   border-radius: 2px;

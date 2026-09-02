@@ -11,7 +11,8 @@
     "dev:web": "concurrently -n server,student -c cyan,magenta \"pnpm -F @lr/server dev\" \"pnpm -F @lr/student dev\"",
     "build": "pnpm -F @lr/shared build && pnpm -F @lr/student build && pnpm -F @lr/overlay build && pnpm -F @lr/server build",
     "typecheck": "pnpm -r typecheck",
-    "tauri": "pnpm -F @lr/overlay tauri"
+    "tauri": "pnpm -F @lr/overlay tauri",
+    "icon": "node tools/make-icon.mjs tools/icon-src.png && pnpm -F @lr/overlay exec tauri icon ../../tools/icon-src.png"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

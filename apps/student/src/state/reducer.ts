@@ -1,6 +1,7 @@
 import {
   LIMITS,
   type ErrorCode,
+  type LimitScope,
   type PollView,
   type QuestionView,
   type ServerMsg,
@@ -15,7 +16,6 @@ export interface Notice {
 
 /** Which cooldown-bearing action we last sent, so a bare `rate_limited` can be
  *  attributed to the right control. The protocol's error carries no scope. */
-type LimitScope = 'reaction' | 'question';
 
 export interface SessionState {
   phase: Phase;
@@ -29,7 +29,7 @@ export interface SessionState {
   pollAnswer: string | null;
   nextReactionAt: number;
   nextQuestionAt: number;
-  pendingLimit: LimitScope | null;
+  pendingLimit: Extract<LimitScope, 'reaction' | 'question'> | null;
 }
 
 export const initialState: SessionState = {
@@ -138,7 +138,7 @@ function applyServerMsg(state: SessionState, msg: ServerMsg, now: number): Sessi
       return { ...state, phase: 'ended', poll: null, pollAnswer: null, notice: null };
 
     case 'error':
-      return applyError(state, msg.code, msg.message, now);
+      return applyError(state, msg.code, msg.message, now, msg.scope);
 
     case 'questions:sync':
       return { ...state, questions: msg.questions };
@@ -192,13 +192,17 @@ function applyError(
   code: ErrorCode,
   message: string,
   now: number,
+  scope?: LimitScope,
 ): SessionState {
   const text = ERROR_TEXT[code] ?? message;
 
   if (code === 'rate_limited') {
+    // The server names the limit it rejected. `pendingLimit` is only a fallback
+    // for older servers, and is racy when two sends are in flight at once.
+    const which = scope ?? state.pendingLimit;
     // Reactions sync silently from `reaction:ack`; only the question composer
     // needs its quiet "you can ask again" line nudged forward.
-    if (state.pendingLimit === 'question') {
+    if (which === 'question') {
       return {
         ...state,
         pendingLimit: null,

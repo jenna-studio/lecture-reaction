@@ -77,7 +77,7 @@ function Card({ card, onResolve }: { card: QuestionCard; onResolve: () => void }
       <button
         type="button"
         data-lr-interactive="true"
-        className="lr-btn lr-interactive absolute bottom-2 right-2 !px-2 !py-1"
+        className="lr-btn lr-interactive absolute bottom-2 right-2 px-2! py-1!"
         aria-label="Mark question resolved"
         onClick={onResolve}
         disabled={card.exiting}

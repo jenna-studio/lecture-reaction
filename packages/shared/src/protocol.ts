@@ -131,9 +131,16 @@ export type ErrorCode =
   | 'bad_request'
   | 'unauthorized';
 
+/**
+ * Which limit an error refers to. Without this a client receiving
+ * `rate_limited` has to guess which of its own sends was rejected, which is
+ * racy when a reaction and a question are in flight together.
+ */
+export type LimitScope = 'reaction' | 'question' | 'vote' | 'poll';
+
 export type ServerMsg =
   /* both */
-  | { t: 'error'; code: ErrorCode; message: string }
+  | { t: 'error'; code: ErrorCode; message: string; scope?: LimitScope }
   | { t: 'pong' }
   | { t: 'session:ended'; at: number }
   /* professor */

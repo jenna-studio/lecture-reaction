@@ -92,8 +92,11 @@ check your firewall is allowing inbound connections on 8787 before checking anyt
 
 Other root scripts: `pnpm build`, `pnpm typecheck`, `pnpm tauri`.
 
-These are the intended commands as defined in the root `package.json`. They have not been
-run end-to-end as part of writing this document.
+Verified on macOS (Node 25, pnpm 10): `pnpm install`, `pnpm typecheck` across all four
+packages, `pnpm build` for the student and overlay bundles, `cargo check` for the Tauri shell,
+and the server smoke test against a live 30-student session. The Tauri app has been compiled
+but not launched as a window here, so the transparent always-on-top and click-through
+behaviour is unverified on any platform — that is the one thing to check first.
 
 ## Keyboard shortcuts
 
@@ -103,6 +106,21 @@ run end-to-end as part of writing this document.
 | `CmdOrCtrl+Shift+H` | Toggle **Quiet Mode** — reaction floaters are suppressed and the question stack dims to a count chip. Questions keep arriving; they just stop moving in your peripheral vision. |
 
 Both are global, so they work while PowerPoint has focus.
+
+## Development tools
+
+Testing a lecture tool normally needs a lecture. These stand in for one:
+
+| Command | What it does |
+| --- | --- |
+| `pnpm -F @lr/server smoke` | Drives a scripted 30-student class against a running server and asserts the protocol end to end: code format, presence, burst grouping, rate limits, upvotes, poll tallies, resolve, end-of-class, and rejoin-after-end. Requires the server to already be running. |
+| `pnpm -F @lr/server simulate <CODE>` | Joins 24 simulated students to a live class: posts four questions with different vote weights, answers any understanding check, and keeps reaction waves flowing. Use it to exercise the overlay without 24 phones. |
+| `pnpm icon` | Regenerates the app icon from the pixel grid in `tools/make-icon.mjs` and expands it to every platform size. Tauri needs `src-tauri/icons/32x32.png` at compile time — if it is missing, the **Rust** build fails with `failed to open icon`, which looks unrelated to icons at first glance. |
+
+To review the overlay's layout without building the desktop app, open
+`http://localhost:5174/?window=launcher` (or `?window=overlay`) in a browser.
+Tauri calls are feature-detected, so the overlay renders against a placeholder
+slide backdrop instead of a transparent window.
 
 ## How a class runs
 
