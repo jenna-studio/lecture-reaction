@@ -48,7 +48,9 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
   }, []);
 
   useBursts((burst) => {
-    if (quiet) return; // still counted by the reducer, just not drawn
+    // Quiet Mode hides sentiment, but "can't see or hear" is a fault report:
+    // suppressing it would hide the one signal the professor must act on.
+    if (quiet && burst.type !== 'blocked') return; // still counted by the reducer
 
     // Built outside the updater so React's double-invocation in StrictMode
     // cannot spawn two items for one burst.
@@ -95,7 +97,8 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
     };
   }, []);
 
-  if (quiet) return null;
+  // In Quiet Mode only the fault reports above are ever queued, so the layer
+  // stays mounted rather than being dropped wholesale.
 
   return (
     <div className="fixed inset-0 overflow-hidden" aria-hidden="true">

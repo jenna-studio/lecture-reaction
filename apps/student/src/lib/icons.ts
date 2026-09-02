@@ -1,6 +1,7 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
   faCheck,
+  faEyeSlash,
   faForward,
   faHeart,
   faLightbulb,
@@ -12,6 +13,7 @@ import { REACTION_META, type PaletteKey, type ReactionType } from '@lr/shared';
 /** Keyed by the free-solid icon names the shared protocol already declares. */
 const ICONS: Record<string, IconDefinition> = {
   check: faCheck,
+  'eye-slash': faEyeSlash,
   question: faQuestion,
   forward: faForward,
   heart: faHeart,

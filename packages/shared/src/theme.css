@@ -157,6 +157,15 @@
   0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); }
 }
 
+/* Surge nudge: the control strip breathes so a spike in reactions is caught
+   peripherally while the professor is mid-sentence. Deliberately slow and
+   low-contrast — this must never feel like an alarm. */
+@keyframes lr-surge-pulse {
+  0%, 100% { box-shadow: var(--lr-shadow-sm); border-color: color-mix(in srgb, var(--lr-dark) 78%, transparent); }
+  50%      { box-shadow: 0 0 0 3px var(--lr-yellow), var(--lr-shadow-sm); border-color: var(--lr-dark); }
+}
+.lr-surge { animation: lr-surge-pulse 1.4s steps(12, end) infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -165,4 +174,9 @@
   }
   /* Reactions still need to be *seen*; they just appear and fade in place. */
   .lr-float { animation: none !important; opacity: 1; }
+  /* Likewise the surge nudge: hold the highlight instead of pulsing it. */
+  .lr-surge {
+    animation: none !important;
+    box-shadow: 0 0 0 3px var(--lr-yellow), var(--lr-shadow-sm);
+  }
 }

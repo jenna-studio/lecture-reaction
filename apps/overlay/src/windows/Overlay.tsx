@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LIMITS } from '@lr/shared';
+import { LIMITS, type ReactionType } from '@lr/shared';
 import { useSession } from '../lib/SessionContext';
 import { useClickThrough } from '../lib/clickThrough';
 import {
@@ -23,7 +23,7 @@ import { SlidesBackdrop } from '../components/SlidesBackdrop';
  * the presentation, is all of it.
  */
 export function Overlay() {
-  const { state, endClass, startPoll, endPoll } = useSession();
+  const { state, endClass, startPoll, endPoll, subscribeBursts } = useSession();
 
   const [settings, setSettings] = useState<OverlaySettings>(loadSettings);
   const [fullInteraction, setFullInteraction] = useState(false);
@@ -31,6 +31,8 @@ export function Overlay() {
   // True while a control-strip popover is open; the poll panel lifts clear of it.
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [joinBase, setJoinBase] = useState<string | null>(null);
+  /** The reaction type that just surged, highlighted briefly on the strip. */
+  const [surge, setSurge] = useState<ReactionType | null>(null);
 
   // Same continuous check as the launcher: the address students need can change
   // mid-lecture if the professor's network does.
@@ -114,6 +116,39 @@ export function Overlay() {
     return () => window.clearTimeout(timer);
   }, [pollId]);
 
+  /*
+   * Surge nudge.
+   *
+   * The professor is talking, not watching floaters. When a burst reaches a
+   * meaningful share of the class, the control strip highlights so the signal
+   * is caught peripherally — no sound, no popup, nothing to dismiss.
+   */
+  const presenceRef = useRef(state.presence);
+  presenceRef.current = state.presence;
+
+  useEffect(
+    () =>
+      subscribeBursts((burst) => {
+        const threshold = Math.max(
+          LIMITS.surgeMinCount,
+          Math.ceil(presenceRef.current * LIMITS.surgeShareOfClass),
+        );
+        // A fault report is worth surfacing even from a couple of students:
+        // if two people cannot hear, nobody at the back can.
+        const floor = burst.type === 'blocked' ? 2 : threshold;
+        if (burst.count < floor) return;
+        setSurge(burst.type);
+      }),
+    [subscribeBursts],
+  );
+
+  // Clear the highlight a while after the most recent surge.
+  useEffect(() => {
+    if (!surge) return;
+    const timer = window.setTimeout(() => setSurge(null), LIMITS.surgeHighlightMs);
+    return () => window.clearTimeout(timer);
+  }, [surge]);
+
   const onEndClass = useCallback(() => {
     endClass();
     void hideOverlay();
@@ -150,6 +185,7 @@ export function Overlay() {
         pollMinimized={Boolean(state.poll) && !pollExpanded}
         onExpandPoll={() => setPollExpanded(true)}
         shareUrl={joinBase && state.code ? joinUrl(joinBase, state.code) : null}
+        surge={surge}
         onPopoverToggle={setPopoverOpen}
         onEndClass={onEndClass}
       />

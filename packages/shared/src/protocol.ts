@@ -19,6 +19,9 @@ export const REACTION_TYPES = [
   'confused',
   'too_fast',
   'love',
+  // Not a feeling — a fact the professor can fix in three seconds. Kept last
+  // and handled separately in the UI, because it is a different kind of signal.
+  'blocked',
   'again',
   'interesting',
 ] as const;
@@ -36,6 +39,7 @@ export const REACTION_META: Record<
   confused:    { label: 'Confused',    meaning: "I'm confused.",              icon: 'question',    accent: 'pink' },
   too_fast:    { label: 'Too Fast',    meaning: "You're going too fast.",     icon: 'forward',     accent: 'sky' },
   love:        { label: 'Love It',     meaning: 'I love this.',               icon: 'heart',       accent: 'lavender' },
+  blocked:     { label: "Can't See/Hear", meaning: "I can't see or hear you.", icon: 'eye-slash',   accent: 'yellow' },
   again:       { label: 'Again',       meaning: 'Please explain that again.', icon: 'rotate-left', accent: 'sky' },
   interesting: { label: 'Interesting', meaning: 'This is interesting.',       icon: 'lightbulb',   accent: 'yellow' },
 };
@@ -183,6 +187,16 @@ export const LIMITS = {
   reactionFloatMaxMs: 4000,
   /** Poll results stay expanded this long, then minimize. */
   pollResultVisibleMs: 20000,
+  /**
+   * A reaction burst counts as a "surge" when it reaches this share of the
+   * joined class — the overlay nudges rather than relying on the professor
+   * noticing floaters while they are mid-sentence.
+   */
+  surgeShareOfClass: 0.3,
+  /** ...but never fires below this many students, so a class of 4 is quiet. */
+  surgeMinCount: 5,
+  /** How long the control strip stays highlighted after a surge. */
+  surgeHighlightMs: 4000,
   /** A participant is considered gone after this much silence. */
   participantTimeoutMs: 45000,
   heartbeatMs: 15000,

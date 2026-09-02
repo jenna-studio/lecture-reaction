@@ -6,7 +6,8 @@ presenting.
 
 The professor runs a click-through desktop window on top of PowerPoint, Keynote, a PDF, a
 browser, an IDE — anything. Students open a URL on their phone, type a 5-character class code,
-and tap: *understand*, *confused*, *too fast*, *too slow*, *again*, *interesting*. Reactions
+and tap: *understand*, *confused*, *too fast*, *again*, *interesting*, *love it* — plus a separate
+*can't see/hear* for when the mic is off or the projector has washed out. Reactions
 float up over the slides. Questions stack as compact bubbles down the right edge, sorted by
 votes; the professor clears them with a checkmark and can fire a one-click understanding check.
 
@@ -20,22 +21,47 @@ interface, and nobody ever looks away from the slides.
  |                                          [ Q ] can you redo    |
  |                                          [ 3 ] the proof?  [v] |
  |                                                                |
- |            (nothing spawns over the slide content)             |
+ |             (nothing spawns over the slide content)            |
  |                                          [ Q ] what's the      |
- |   ^  ^                                   [ 1 ] base case?  [v] |
- |   O  ?                                                         |
- |  ^   ^   ^                               ( +2 more )           |
- |  ?   O   !                                                     |
+ |                                          [ 1 ] base case?  [v] |
+ |          ^      ^                                              |
+ |         ? x14   O                        ( +2 more )           |
+ |     ^      ^        ^                                          |
+ |    !      ? x14    O                                           |
  |                                                                |
- |  [ ABCDE ] [ ? Ask Class ] [ Reactions ] [ * ] [ End Class ]  |
+ |  [ ABCDE ][ ? Ask Class ][ Reactions ][ * ][ End Class ][?x14] |
  +---------------------------------------------------------------+
-   ^ reactions rise from the left column and the bottom band
+   ^ reactions rise from the bottom band (Left / Both are options)
      the right-hand strip is reserved for questions
+     a surge highlights the strip and names itself -----^
      the class code and controls sit in the corner
 ```
 
 Everything you see is drawn on a transparent, always-on-top window. Clicks pass straight through
 to the slides underneath — except over the controls, the question cards and the checkmarks.
+
+## The reactions
+
+Six feelings in a 3x2 grid, and one fault report kept deliberately apart from them.
+
+| | Reaction | Meaning | Icon |
+| --- | --- | --- | --- |
+| | **Understand** | I understand this. | `fa-check` |
+| | **Confused** | I'm confused. | `fa-question` |
+| | **Too Fast** | You're going too fast. | `fa-forward` |
+| | **Love It** | I love this. | `fa-heart` |
+| | **Again** | Please explain that again. | `fa-rotate-left` |
+| | **Interesting** | This is interesting. | `fa-lightbulb` |
+| — | **Can't See/Hear** | I can't see or hear you. | `fa-eye-slash` |
+
+`Can't See/Hear` is the odd one out on purpose. Everything else is a feeling; this is a fact
+you can fix in three seconds — a muted mic, a washed-out projector, a font nobody at the back
+can read. So it gets its own full-width button, it **stays visible in Quiet Mode** when
+sentiment is hidden, and it raises a surge from just two students, because if two people
+cannot hear then nobody in the back row can.
+
+All seven are defined once in `REACTION_META` in `packages/shared`; the server, the student app
+and the overlay all derive from it, so adding or changing one is a single edit.
 
 ## Repo layout
 
@@ -49,6 +75,9 @@ lecture-reaction/
 ├── apps/
 │   ├── student/     Vite + React web app — what students open on their phone
 │   └── overlay/     Tauri v2 + React — the professor's desktop overlay
+│       └── src-tauri/   Rust shell: transparent window, click-through, sidecar
+├── tools/           build-server-binary.mjs (standalone server), make-icon.mjs,
+│                    free-ports.mjs (dev preflight)
 └── docs/
     └── ARCHITECTURE.md
 ```
@@ -99,21 +128,58 @@ Ports:
 The server works out the address students should use **every time it is asked**, so it
 follows whatever network you are on. See [Getting students in](#getting-students-in).
 
-Other root scripts: `pnpm build`, `pnpm typecheck`, `pnpm tauri`.
+All three dev commands run `tools/free-ports.mjs` first, which reclaims ports `8787`/
+`5173`/`5174` and stops leftover overlay instances — but **only processes belonging to
+this checkout**. Anything else holding a port is named and the run stops, rather than
+being killed out from under you.
+
+Other root scripts: `pnpm build`, `pnpm typecheck`, `pnpm tauri`, `pnpm icon`,
+`pnpm build:server-binary`.
+
+### Building a double-clickable app
+
+```bash
+pnpm build:server-binary    # bundle the server into one executable (~108 MB)
+pnpm tauri build            # -> Lecture React.app + a .dmg
+```
+
+**Run the first command before the second**, or you get an app that launches to a
+launcher window whose START CLASS hangs forever: the bundle would contain only the
+overlay, with no server for it to talk to.
+
+`build:server-binary` compiles `packages/server` into a single self-contained
+executable with Node's SEA support, so the app runs on a machine with **no Node
+installed**. Tauri ships it as a sidecar next to the main binary and the app starts
+it on launch, skips it if a server is already listening (so `pnpm desktop` still
+works), and kills it on exit so it cannot orphan port 8787. The built student app
+rides along as a bundle resource.
+
+Two things that will bite you if you touch this:
+
+- The base `node` must contain the SEA fuse sentinel. **Homebrew's node does not** —
+  postject fails with "could not find the sentinel" — so the script downloads an
+  official build into `tools/.cache` and uses that.
+- The SEA blob is version-locked to the node that produced it. Generating with one
+  and injecting into another fails at startup with
+  `v8::ToLocalChecked Empty MaybeLocal`.
 
 ### What has actually been verified
 
 On macOS (Node 25, pnpm 10): install, typecheck across all four packages, both web
 bundles building, the Tauri shell compiling and **launching**, the server smoke test
-against a live 30-student session, and the student app driven end to end on a phone
-viewport (join, react, ask, upvote, see a question resolved).
+against a live 30-student session, the standalone server binary serving with no Node
+in the environment, and the student app driven end to end on phone and desktop
+viewports (auto-join from a QR link, react, ask, upvote, see a question resolved,
+watch a surge fire on the overlay).
 
-Not yet verified anywhere: the overlay's **transparency, always-on-top and
-click-through behaviour over a real presentation**. The window runs, but whether it
-floats correctly above a fullscreen Keynote — macOS Spaces are the usual failure —
-and whether clicks reach the app underneath is untested. That is the first thing to
-check, and `CmdOrCtrl+Shift+L` is the escape hatch if the overlay ever swallows your
-clicks. Windows and Linux are entirely untested.
+Not verified anywhere: the overlay's **transparency, always-on-top and click-through
+behaviour over a real presentation**. The window runs, but whether it floats above a
+fullscreen Keynote — macOS Spaces are the usual failure — and whether clicks reach
+the app underneath is untested. That is the first thing to check, and
+`CmdOrCtrl+Shift+L` is the escape hatch if the overlay ever swallows your clicks.
+
+Also not verified: the packaged `.app` end to end with the sidecar, and Windows and
+Linux entirely.
 
 ## Keyboard shortcuts
 
@@ -133,15 +199,12 @@ Testing a lecture tool normally needs a lecture. These stand in for one:
 | `pnpm -F @lr/server smoke` | Drives a scripted 30-student class against a running server and asserts the protocol end to end: code format, presence, burst grouping, rate limits, upvotes, poll tallies, resolve, end-of-class, and rejoin-after-end. Requires the server to already be running. |
 | `pnpm -F @lr/server simulate <CODE>` | Joins 24 simulated students to a live class: posts four questions with different vote weights, answers any understanding check, and keeps reaction waves flowing. Use it to exercise the overlay without 24 phones. |
 | `pnpm -F @lr/server test:lan` | Ranks synthetic macOS/Windows/Linux interface tables and asserts the right address wins in each — VM bridges, WSL, Docker and VPN adapters must all lose to the real Wi-Fi. Runs without a server. |
+| `pnpm build:server-binary` | Compiles the server into a single self-contained executable for the desktop bundle. Downloads an official node into `tools/.cache` on first run. |
 | `pnpm icon` | Regenerates the app icon from the pixel grid in `tools/make-icon.mjs` and expands it to every platform size. Tauri needs `src-tauri/icons/32x32.png` at compile time — if it is missing, the **Rust** build fails with `failed to open icon`, which looks unrelated to icons at first glance. |
 
-`pnpm dev`, `pnpm dev:web` and `pnpm desktop` all run `tools/free-ports.mjs` first.
-It reclaims ports `8787`/`5173`/`5174` and stops leftover overlay instances, but
-**only processes belonging to this checkout** — anything else holding a port is
-reported by name and the run stops, rather than being killed out from under you.
-It matches `-sTCP:LISTEN` only, because a plain `lsof -ti:5174` also lists the
-Tauri webview's own *connections* to the port, and killing those kills the app
-you are trying to start.
+One detail worth keeping: `free-ports.mjs` matches `-sTCP:LISTEN` only. A plain
+`lsof -ti:5174` also lists the Tauri webview's own *connections* to the port, so
+killing everything it returns kills the app you are trying to start.
 
 To review the overlay's layout without building the desktop app, open
 `http://localhost:5174/?window=launcher` (or `?window=overlay`) in a browser.
@@ -179,11 +242,22 @@ quietly ruin a class if it is wrong.
 3. Watch `N students joined` climb. When the room is in, click **Start Overlay**.
    The launcher gets out of the way and the transparent overlay takes over.
 
-If you would rather say it out loud than show a QR, read out the address from the
-server's boot log and the code from the launcher. The code deliberately contains no
+If you would rather say it out loud than show a QR, the code deliberately contains no
 `O`, `0`, `I`, `1` or `L`, so there is nothing ambiguous to say aloud — and if a
 student types one of those anyway, the field ignores the keystroke rather than
 accepting a code that cannot exist.
+
+For the address, prefer your machine's Bonjour name over its IP: it does not change
+when DHCP hands you a new lease, so you can say the same sentence every lecture.
+
+```sh
+scutil --get LocalHostName     # e.g. jinseon-macbook-pro -> jinseon-macbook-pro.local:8787
+```
+
+Rename the Mac (System Settings -> General -> About -> Name) to something short and it
+becomes `lecture.local:8787`. Caveat: iPhones resolve `.local` reliably, **Android is
+inconsistent** — treat it as a fallback for the few students whose camera will not
+scan, not as the primary method.
 
 ### During the class
 
@@ -192,11 +266,14 @@ your clicker and your IDE all behave as if it were not running.
 
 | You want to | Do this |
 | --- | --- |
-| See how the room is doing | Nothing. Reactions float up the left and bottom margins. A wave of the same reaction arrives as one icon with a count (`? x 14`), not fourteen icons. |
+| See how the room is doing | Nothing. Reactions rise from the bottom band. A wave of the same reaction arrives as one icon with a count (`? x 14`), not fourteen icons. |
 | Answer a question | Read the cards down the right edge — newest at the bottom, most-upvoted highlighted. Click the checkmark when you have answered it; the card fades and slides away, and the student who asked sees `Answered`. |
 | Ask if they are following | Click **? Ask Class**. Every phone gets *Got it / Almost / Lost*, and the tally appears on your overlay within a second. It stays up for 20 seconds, then minimizes itself. |
 | Ask something specific | Alt-click (or long-press) **? Ask Class** for a quick poll composer: a question and 2-4 options. It is deliberately small — this is not a survey tool. |
-| Hide reactions for a moment | Click **Reactions**, or press `CmdOrCtrl+Shift+H`. Reactions keep being collected and counted, they just stop moving on screen. Useful during a video, a demo, or an exam. |
+| Know when something is wrong | Watch for the control strip to highlight with a named badge (`? Confused`, `Can't See/Hear`). It fires when a reaction reaches ~30% of the class, so you catch a spike peripherally instead of watching floaters while you talk. |
+| Hide reactions for a moment | Click **Reactions**, or press `CmdOrCtrl+Shift+H`. Reactions keep being collected and counted, they just stop moving on screen. Useful during a video, a demo, or an exam. `Can't See/Hear` still shows through — hiding a fault report would defeat the point. |
+| Let a latecomer in | Open the gear menu: **Copy Link** and **Show QR** are there too, so you never have to dig the launcher back out mid-lecture. |
+| Move reactions somewhere else | Gear menu -> Reaction Position: Bottom (default), Left, or Both. |
 | Move the controls | Drag the strip. Click the code to collapse it down to just `[ K7M4P ]`. Both are remembered. |
 | Click something on the overlay and nothing happens | Press `CmdOrCtrl+Shift+L` for Interaction Mode — the whole overlay becomes clickable. Press it again to go back to presenting. |
 
@@ -209,9 +286,57 @@ closes. Starting another class generates a different code; nothing carries over.
 Nothing is stored. Reactions were never written down, and the questions go with the
 session.
 
+## What students see
+
+One screen, no navigation. On a phone it is a single column; on a laptop it splits into
+two, with the class's questions alongside the reaction pad instead of far below it.
+
+```
+   CLASS K7M4P  *                          [ Leave ]
+   ------------------------------------------------
+   HOW IS THE LECTURE GOING?
+
+   [ v Understand ] [ ? Confused  ] [ >> Too Fast ]
+   [ <3 Love It   ] [ <- Again    ] [ !  Interesting ]
+   [ ---------- Can't See/Hear ------------------- ]
+
+   You're anonymous - your professor sees reactions,
+   never who sent them.
+   - - - - - - - - - - - - - - - - - - - - - - - -
+   ASK A QUESTION
+   [ Anything you'd like explained...             ]
+                                          [ Send ]
+
+   CLASS QUESTIONS
+   [ ^17 ] Can you explain recursion again?
+   [ ^9  ] Why is this O(n^2) and not O(n log n)?
+```
+
+Reactions are rate-limited to one every 2 seconds and questions to one every 15, shown
+as a quiet progress bar and a "you can ask again in 12s" line rather than an error.
+Students can upvote instead of asking a duplicate, and a resolved question shows
+`Answered` before it leaves the list.
+
+Anonymity is real, not cosmetic: the `anonId` in their browser is used only for
+cooldowns, one-vote-per-question, and reconnecting. It never reaches a professor —
+enforced by a single `toProfessorView` boundary on the server.
+
 ## Getting students in
 
-Students open the server's address on their phone. No app, no account, no name.
+Students open the server's address on a phone or a laptop — any device, any OS, any
+browser. No app, no account, no name. The server binds all interfaces, so anything on
+the same network can reach it.
+
+Three ways to hand it out, all carrying the code so nobody lands on an empty form:
+
+| | Best for |
+| --- | --- |
+| **Show QR** | A hall full of phones. Put it on the projector; students scan and are in. |
+| **Copy Link** | Laptops. Pastes `http://<address>:8787/?c=K7M4P` into your LMS, a chat or an email. |
+| **Copy Code** | When you are sharing the address some other way. |
+
+All three live in the launcher, and Copy Link / Show QR are also in the overlay's gear
+menu for latecomers.
 
 The server **re-derives that address on every request**, so it tracks your
 environment rather than being fixed at startup. Join the lecture hall Wi-Fi after
@@ -292,9 +417,12 @@ depends on it.
 
 | Symptom | Cause |
 | --- | --- |
-| `Port 5174 is already in use` | A previous run left a dev server behind. `pnpm desktop` now clears this automatically (see below), so this should not recur — if it does, something outside this repo holds the port and the preflight will name it. |
+| `Port 5174 is already in use` | A previous run left a dev server behind. The dev commands clear this automatically, so it should not recur — if it does, something outside this repo holds the port and the preflight names it. |
 | Several overlay windows on screen | Stale app instances from earlier runs. Killing the dev servers does not stop an already-running Tauri binary. The preflight now stops them too. |
-| Overlay shows an old class code | Fixed, but if it recurs: the overlay follows the session the launcher persists. It should re-attach within 400ms of a new class starting. |
+| Overlay shows an old class code | The overlay follows the session the launcher persists and re-attaches within 400ms of a new class starting. If it sticks, the launcher never wrote a new session — check that START CLASS actually got a code. |
+| Built `.app` hangs on `... STARTING...` | The bundle has no server in it. Run `pnpm build:server-binary` **before** `pnpm tauri build`. |
+| Reactions appear on the left, not the bottom | A stored preference from an earlier version. Settings are versioned and reset once, so this should self-correct; otherwise pick Bottom in the gear menu. |
+| VS Code: `schema ... is untrusted` or `Missing property "permissions"` | Editor-only, never affects the build. `tauri.conf.json` points at the vendored `src-tauri/schemas/tauri-config.schema.json`; reload the window. Do not point it at `gen/schemas/desktop-schema.json` — that is the *capability* schema. |
 | Rust build fails with `failed to open icon` | The icon set is missing. `pnpm icon`. Tauri reads `icons/32x32.png` at compile time, so this surfaces as a Rust error rather than an asset one. |
 | Students see `Can't reach the server. Still trying...` | The server is not reachable from their phone — work through [When students cannot connect](#when-students-cannot-connect). |
 | Overlay swallows clicks | `CmdOrCtrl+Shift+L` toggles Interaction Mode off. |

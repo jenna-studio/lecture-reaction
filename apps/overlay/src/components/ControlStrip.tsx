@@ -18,10 +18,11 @@ import {
   faQuestion,
   faRightFromBracket,
 } from '@fortawesome/free-solid-svg-icons';
-import type { ReactionZone } from '@lr/shared';
 import type { ConnectionState } from '../lib/socket';
 import type { OverlaySettings } from '../lib/settings';
+import { REACTION_META, type ReactionType, type ReactionZone } from '@lr/shared';
 import { clamp } from '../lib/spawn';
+import { reactionIcon } from '../lib/icons';
 import { readJson, STORAGE_KEYS, writeJson } from '../lib/storage';
 import { PollComposer } from './PollComposer';
 import { Popup } from './Popup';
@@ -57,6 +58,11 @@ export interface ControlStripProps {
   onEndClass: () => void;
   /** Full join URL (address + code) for the share controls. */
   shareUrl: string | null;
+  /**
+   * A reaction that just surged past the attention threshold, or null. Drives
+   * a brief highlight so the professor catches it without watching the screen.
+   */
+  surge: ReactionType | null;
   /** Lets the overlay lift the poll panel clear of an open popover. */
   onPopoverToggle?: (open: boolean) => void;
 }
@@ -177,7 +183,9 @@ export function ControlStrip(props: ControlStripProps) {
     <div
       ref={rootRef}
       data-lr-interactive="true"
-      className="lr-panel-glass lr-interactive fixed z-40 flex items-center gap-2 px-2 py-1.5 cursor-grab active:cursor-grabbing"
+      className={`lr-panel-glass lr-interactive fixed z-40 flex items-center gap-2 px-2 py-1.5 cursor-grab active:cursor-grabbing ${
+        props.surge ? 'lr-surge' : ''
+      }`}
       style={{ left: position.x, top: position.y }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -260,6 +268,17 @@ export function ControlStrip(props: ControlStripProps) {
             <FontAwesomeIcon icon={faRightFromBracket} className="mr-1.5" />
             End Class
           </button>
+
+          {props.surge && (
+            <span
+              className="lr-pixel flex items-center gap-1.5 whitespace-nowrap rounded-[3px] border-2 border-[var(--lr-dark)] px-1.5 py-1 text-[10px]"
+              style={{ background: `var(--lr-${REACTION_META[props.surge].accent})` }}
+              role="status"
+            >
+              <FontAwesomeIcon icon={reactionIcon(props.surge)} />
+              {REACTION_META[props.surge].label}
+            </span>
+          )}
 
           <ConnectionDot reconnecting={reconnecting} />
         </>
