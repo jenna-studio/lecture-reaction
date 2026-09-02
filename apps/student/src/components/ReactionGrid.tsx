@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { REACTION_META, REACTION_TYPES, type ReactionType } from '@lr/shared';
+import {
+  FAULT_TYPES,
+  REACTION_META,
+  REACTION_TYPES,
+  isFaultType,
+  type ReactionType,
+} from '@lr/shared';
 import { accentClass, reactionIcon } from '../lib/icons';
 import { useCooldown } from '../lib/hooks';
 
@@ -13,8 +19,8 @@ interface Props {
 
 const SENT_PILL_MS = 1100;
 
-/** The 3x2 feelings grid; `blocked` is rendered separately below it. */
-const SENTIMENT_TYPES = REACTION_TYPES.filter((t) => t !== 'blocked');
+/** The 3x2 feelings grid; the fault reports are rendered separately below it. */
+const SENTIMENT_TYPES = REACTION_TYPES.filter((t) => !isFaultType(t));
 
 export function ReactionGrid({ onSend, cooldownUntil, disabled }: Props) {
   const cooling = useCooldown(cooldownUntil);
@@ -72,36 +78,44 @@ export function ReactionGrid({ onSend, cooldownUntil, disabled }: Props) {
       </div>
 
       {/*
-        "Can't see or hear" is not a feeling, it is a fault report — so it sits
-        apart from the sentiment grid, full width, and reads as a single clear
-        thing to tap when the mic is off or the projector has washed out.
+        Faults, not feelings: a dead mic and a washed-out projector are separate
+        problems with separate fixes, so they are separate buttons — sitting
+        apart from the sentiment grid on their own row.
       */}
-      <button
-        type="button"
-        onClick={() => handle('blocked')}
-        disabled={blocked}
-        aria-label={REACTION_META.blocked.meaning}
-        className={`lr-btn mt-2 flex min-h-[56px] w-full items-center justify-center gap-3 overflow-hidden px-3 ${accentClass(
-          REACTION_META.blocked.accent,
-        )} ${cooling && !disabled ? 'lr-cooling' : ''}`}
-      >
-        <FontAwesomeIcon
-          icon={reactionIcon('blocked')}
-          className="text-[22px] lg:text-[24px]"
-          aria-hidden="true"
-        />
-        <span className="font-pixel text-[11px] leading-tight text-lr-dark">
-          {REACTION_META.blocked.label}
-        </span>
-        {cooling && (
-          <span
-            key={`blocked-${cooldownUntil}`}
-            aria-hidden="true"
-            className="lr-cooldown"
-            style={{ animationDuration: `${remainingMs}ms` }}
-          />
-        )}
-      </button>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {FAULT_TYPES.map((type) => {
+          const meta = REACTION_META[type];
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => handle(type)}
+              disabled={blocked}
+              aria-label={meta.meaning}
+              className={`lr-btn relative flex min-h-[56px] items-center justify-center gap-2 overflow-hidden px-2 ${accentClass(
+                meta.accent,
+              )} ${cooling && !disabled ? 'lr-cooling' : ''}`}
+            >
+              <FontAwesomeIcon
+                icon={reactionIcon(type)}
+                className="text-[20px] lg:text-[22px]"
+                aria-hidden="true"
+              />
+              <span className="font-pixel text-[10px] leading-tight text-lr-dark">
+                {meta.label}
+              </span>
+              {cooling && (
+                <span
+                  key={`${type}-${cooldownUntil}`}
+                  aria-hidden="true"
+                  className="lr-cooldown"
+                  style={{ animationDuration: `${remainingMs}ms` }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       <div role="status" aria-live="polite" className="mt-2 flex h-6 items-center justify-center">
         {sent && (

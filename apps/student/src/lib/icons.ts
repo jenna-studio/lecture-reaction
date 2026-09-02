@@ -2,6 +2,7 @@ import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
   faCheck,
   faEyeSlash,
+  faVolumeXmark,
   faForward,
   faHeart,
   faLightbulb,
@@ -14,6 +15,7 @@ import { REACTION_META, type PaletteKey, type ReactionType } from '@lr/shared';
 const ICONS: Record<string, IconDefinition> = {
   check: faCheck,
   'eye-slash': faEyeSlash,
+  'volume-xmark': faVolumeXmark,
   question: faQuestion,
   forward: faForward,
   heart: faHeart,
@@ -32,6 +34,9 @@ const ACCENT_CLASS: Record<PaletteKey, string> = {
   lavender: 'lr-a-lavender',
   mint: 'lr-a-mint',
   yellow: 'lr-a-yellow',
+  peach: 'lr-a-peach',
+  sage: 'lr-a-sage',
+  aqua: 'lr-a-aqua',
 };
 
 export function accentClass(accent: PaletteKey): string {

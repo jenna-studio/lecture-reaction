@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { LIMITS, type ReactionType, type ReactionZone } from '@lr/shared';
+import { LIMITS, isFaultType, type ReactionType, type ReactionZone } from '@lr/shared';
 import { useBursts } from '../lib/SessionContext';
 import { reactionAccent, reactionIcon } from '../lib/icons';
 import { pickSpawnPoint } from '../lib/spawn';
@@ -48,9 +48,9 @@ export function FloatingReactions({ zone, quiet }: { zone: ReactionZone; quiet: 
   }, []);
 
   useBursts((burst) => {
-    // Quiet Mode hides sentiment, but "can't see or hear" is a fault report:
-    // suppressing it would hide the one signal the professor must act on.
-    if (quiet && burst.type !== 'blocked') return; // still counted by the reducer
+    // Quiet Mode hides sentiment, but a fault report is the one signal the
+    // professor must act on, so it still shows.
+    if (quiet && !isFaultType(burst.type)) return; // still counted by the reducer
 
     // Built outside the updater so React's double-invocation in StrictMode
     // cannot spawn two items for one burst.

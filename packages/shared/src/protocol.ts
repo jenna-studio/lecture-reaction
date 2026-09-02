@@ -19,30 +19,56 @@ export const REACTION_TYPES = [
   'confused',
   'too_fast',
   'love',
-  // Not a feeling — a fact the professor can fix in three seconds. Kept last
-  // and handled separately in the UI, because it is a different kind of signal.
-  'blocked',
+  // Not feelings — faults the professor can fix in seconds. Kept last and
+  // handled separately in the UI, because they are a different kind of signal.
+  'cant_see',
+  'cant_hear',
   'again',
   'interesting',
 ] as const;
 
 export type ReactionType = (typeof REACTION_TYPES)[number];
 
-export type PaletteKey = 'sky' | 'pink' | 'lavender' | 'mint' | 'yellow';
+/**
+ * Eight reactions need eight hues; the original five pastels could not cover
+ * them without repeats, so peach / sage / aqua fill the gaps at roughly 25deg,
+ * 85deg and 185deg. Every reaction now has its own colour.
+ */
+export type PaletteKey =
+  | 'sky'
+  | 'pink'
+  | 'lavender'
+  | 'mint'
+  | 'yellow'
+  | 'peach'
+  | 'sage'
+  | 'aqua';
 
 /** Font Awesome free-solid icon names, matching the product spec. */
 export const REACTION_META: Record<
   ReactionType,
   { label: string; meaning: string; icon: string; accent: PaletteKey }
 > = {
-  understand:  { label: 'Understand',  meaning: 'I understand this.',         icon: 'check',       accent: 'mint' },
-  confused:    { label: 'Confused',    meaning: "I'm confused.",              icon: 'question',    accent: 'pink' },
-  too_fast:    { label: 'Too Fast',    meaning: "You're going too fast.",     icon: 'forward',     accent: 'sky' },
-  love:        { label: 'Love It',     meaning: 'I love this.',               icon: 'heart',       accent: 'lavender' },
-  blocked:     { label: "Can't See/Hear", meaning: "I can't see or hear you.", icon: 'eye-slash',   accent: 'yellow' },
-  again:       { label: 'Again',       meaning: 'Please explain that again.', icon: 'rotate-left', accent: 'sky' },
-  interesting: { label: 'Interesting', meaning: 'This is interesting.',       icon: 'lightbulb',   accent: 'yellow' },
+  understand:  { label: 'Understand',  meaning: 'I understand this.',         icon: 'check',        accent: 'mint' },
+  confused:    { label: 'Confused',    meaning: "I'm confused.",              icon: 'question',     accent: 'peach' },
+  too_fast:    { label: 'Too Fast',    meaning: "You're going too fast.",     icon: 'forward',      accent: 'sky' },
+  love:        { label: 'Love It',     meaning: 'I love this.',               icon: 'heart',        accent: 'pink' },
+  again:       { label: 'Again',       meaning: 'Please explain that again.', icon: 'rotate-left',  accent: 'lavender' },
+  interesting: { label: 'Interesting', meaning: 'This is interesting.',       icon: 'lightbulb',    accent: 'yellow' },
+  cant_see:    { label: "Can't See",   meaning: "I can't see the screen.",    icon: 'eye-slash',    accent: 'aqua' },
+  cant_hear:   { label: "Can't Hear",  meaning: "I can't hear you.",          icon: 'volume-xmark', accent: 'sage' },
 };
+
+/**
+ * Reactions that report a fault rather than a feeling. They are shown apart
+ * from the sentiment grid, stay visible in Quiet Mode, and surge from a much
+ * lower count — if two people cannot hear, nobody at the back can.
+ */
+export const FAULT_TYPES = ['cant_see', 'cant_hear'] as const satisfies readonly ReactionType[];
+
+export function isFaultType(v: ReactionType): boolean {
+  return (FAULT_TYPES as readonly string[]).includes(v);
+}
 
 export function isReactionType(v: unknown): v is ReactionType {
   return typeof v === 'string' && (REACTION_TYPES as readonly string[]).includes(v);
@@ -195,6 +221,8 @@ export const LIMITS = {
   surgeShareOfClass: 0.3,
   /** ...but never fires below this many students, so a class of 4 is quiet. */
   surgeMinCount: 5,
+  /** Fault reports bypass the share rule: two students is already a problem. */
+  faultSurgeMinCount: 2,
   /** How long the control strip stays highlighted after a surge. */
   surgeHighlightMs: 4000,
   /** A participant is considered gone after this much silence. */

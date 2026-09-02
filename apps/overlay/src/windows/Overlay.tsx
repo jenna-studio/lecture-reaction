@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LIMITS, type ReactionType } from '@lr/shared';
+import { LIMITS, isFaultType, type ReactionType } from '@lr/shared';
 import { useSession } from '../lib/SessionContext';
 import { useClickThrough } from '../lib/clickThrough';
 import {
@@ -133,9 +133,9 @@ export function Overlay() {
           LIMITS.surgeMinCount,
           Math.ceil(presenceRef.current * LIMITS.surgeShareOfClass),
         );
-        // A fault report is worth surfacing even from a couple of students:
-        // if two people cannot hear, nobody at the back can.
-        const floor = burst.type === 'blocked' ? 2 : threshold;
+        // A fault report is worth surfacing from a couple of students: if two
+        // people cannot hear, nobody at the back can.
+        const floor = isFaultType(burst.type) ? LIMITS.faultSurgeMinCount : threshold;
         if (burst.count < floor) return;
         setSurge(burst.type);
       }),

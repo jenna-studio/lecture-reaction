@@ -6,8 +6,8 @@ presenting.
 
 The professor runs a click-through desktop window on top of PowerPoint, Keynote, a PDF, a
 browser, an IDE — anything. Students open a URL on their phone, type a 5-character class code,
-and tap: *understand*, *confused*, *too fast*, *again*, *interesting*, *love it* — plus a separate
-*can't see/hear* for when the mic is off or the projector has washed out. Reactions
+and tap: *understand*, *confused*, *too fast*, *again*, *interesting*, *love it* — plus
+*can't see* and *can't hear* for when the projector washes out or the mic is off. Reactions
 float up over the slides. Questions stack as compact bubbles down the right edge, sorted by
 votes; the professor clears them with a checkmark and can fire a one-click understanding check.
 
@@ -42,23 +42,28 @@ to the slides underneath — except over the controls, the question cards and th
 
 ## The reactions
 
-Six feelings in a 3x2 grid, and one fault report kept deliberately apart from them.
+Six feelings in a 3x2 grid, and two fault reports on their own row beneath it.
 
-| | Reaction | Meaning | Icon |
+| Reaction | Meaning | Icon | Colour |
 | --- | --- | --- | --- |
-| | **Understand** | I understand this. | `fa-check` |
-| | **Confused** | I'm confused. | `fa-question` |
-| | **Too Fast** | You're going too fast. | `fa-forward` |
-| | **Love It** | I love this. | `fa-heart` |
-| | **Again** | Please explain that again. | `fa-rotate-left` |
-| | **Interesting** | This is interesting. | `fa-lightbulb` |
-| — | **Can't See/Hear** | I can't see or hear you. | `fa-eye-slash` |
+| **Understand** | I understand this. | `fa-check` | mint |
+| **Confused** | I'm confused. | `fa-question` | peach |
+| **Too Fast** | You're going too fast. | `fa-forward` | sky |
+| **Love It** | I love this. | `fa-heart` | pink |
+| **Again** | Please explain that again. | `fa-rotate-left` | lavender |
+| **Interesting** | This is interesting. | `fa-lightbulb` | yellow |
+| **Can't See** | I can't see the screen. | `fa-eye-slash` | aqua |
+| **Can't Hear** | I can't hear you. | `fa-volume-xmark` | sage |
 
-`Can't See/Hear` is the odd one out on purpose. Everything else is a feeling; this is a fact
-you can fix in three seconds — a muted mic, a washed-out projector, a font nobody at the back
-can read. So it gets its own full-width button, it **stays visible in Quiet Mode** when
-sentiment is hidden, and it raises a surge from just two students, because if two people
-cannot hear then nobody in the back row can.
+Every reaction has its own hue — the original five pastels could not cover eight without
+repeats, so peach, sage and aqua were added at roughly 25deg, 85deg and 185deg.
+
+The last two are the odd ones out on purpose. Everything above them is a feeling; these are
+facts you can fix in seconds, and they are **separate because the fixes are different** — a
+washed-out projector and a dead microphone are not the same problem. They sit apart from the
+sentiment grid, they **stay visible in Quiet Mode** when sentiment is hidden, and they raise a
+surge from just two students, because if two people cannot hear then nobody in the back row
+can.
 
 All seven are defined once in `REACTION_META` in `packages/shared`; the server, the student app
 and the overlay all derive from it, so adding or changing one is a single edit.
@@ -270,8 +275,8 @@ your clicker and your IDE all behave as if it were not running.
 | Answer a question | Read the cards down the right edge — newest at the bottom, most-upvoted highlighted. Click the checkmark when you have answered it; the card fades and slides away, and the student who asked sees `Answered`. |
 | Ask if they are following | Click **? Ask Class**. Every phone gets *Got it / Almost / Lost*, and the tally appears on your overlay within a second. It stays up for 20 seconds, then minimizes itself. |
 | Ask something specific | Alt-click (or long-press) **? Ask Class** for a quick poll composer: a question and 2-4 options. It is deliberately small — this is not a survey tool. |
-| Know when something is wrong | Watch for the control strip to highlight with a named badge (`? Confused`, `Can't See/Hear`). It fires when a reaction reaches ~30% of the class, so you catch a spike peripherally instead of watching floaters while you talk. |
-| Hide reactions for a moment | Click **Reactions**, or press `CmdOrCtrl+Shift+H`. Reactions keep being collected and counted, they just stop moving on screen. Useful during a video, a demo, or an exam. `Can't See/Hear` still shows through — hiding a fault report would defeat the point. |
+| Know when something is wrong | Watch for the control strip to highlight with a named badge (`? Confused`, `Can't Hear`). It fires when a reaction reaches ~30% of the class, so you catch a spike peripherally instead of watching floaters while you talk. |
+| Hide reactions for a moment | Click **Reactions**, or press `CmdOrCtrl+Shift+H`. Reactions keep being collected and counted, they just stop moving on screen. Useful during a video, a demo, or an exam. `Can't See` / `Can't Hear` still show through — hiding a fault report would defeat the point. |
 | Let a latecomer in | Open the gear menu: **Copy Link** and **Show QR** are there too, so you never have to dig the launcher back out mid-lecture. |
 | Move reactions somewhere else | Gear menu -> Reaction Position: Bottom (default), Left, or Both. |
 | Move the controls | Drag the strip. Click the code to collapse it down to just `[ K7M4P ]`. Both are remembered. |
@@ -298,7 +303,7 @@ two, with the class's questions alongside the reaction pad instead of far below 
 
    [ v Understand ] [ ? Confused  ] [ >> Too Fast ]
    [ <3 Love It   ] [ <- Again    ] [ !  Interesting ]
-   [ ---------- Can't See/Hear ------------------- ]
+   [ (x) Can't See      ] [ <x) Can't Hear         ]
 
    You're anonymous - your professor sees reactions,
    never who sent them.
