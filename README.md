@@ -5,7 +5,7 @@ Lecture React is a transparent overlay that floats that signal over whatever the
 presenting.
 
 The professor runs a click-through desktop window on top of PowerPoint, Keynote, a PDF, a
-browser, an IDE — anything. Students open a URL on their phone, type a 5-character class code,
+browser, an IDE — anything. Students open a URL on their phone/ipad/laptop, type a 5-character class code,
 and tap: *understand*, *confused*, *too fast*, *again*, *interesting*, *love it* — plus
 *can't see* and *can't hear* for when the projector washes out or the mic is off. Reactions
 float up over the slides. Questions stack as compact bubbles down the right edge, sorted by
