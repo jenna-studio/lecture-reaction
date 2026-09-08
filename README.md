@@ -201,7 +201,22 @@ Two things that will bite you if you touch this:
 
 ### What has actually been verified
 
-On macOS (Node 25, pnpm 10): install, typecheck across all four packages, both web
+Build portability checks on 2026-09-08 (Apple Silicon macOS):
+
+- `pnpm typecheck` and `pnpm build` passed across the workspace.
+- `pnpm test:tools` passed: Windows executable selection, literal pnpm arguments,
+  package entrypoint resolution, and IPv6-disabled port handling.
+- `pnpm build:desktop --no-bundle` passed with automatic resource preparation.
+- `pnpm tauri build --bundles app` produced `Lecture React.app`, containing the
+  server executable and built student assets.
+- The generated standalone server started successfully and returned HTTP 200 for
+  `/health` and the student page.
+
+These checks do not establish Windows/Linux runtime support or a complete desktop
+class session. The Windows/Linux cases in the tooling tests simulate platform
+selection; they do not run native Windows/Linux builds.
+
+Earlier recorded checks on macOS (Node 25, pnpm 10): install, typecheck across all four packages, both web
 bundles building, the Tauri shell compiling and **launching**, the server smoke test
 against a live 30-student session, the standalone server binary serving with no Node
 in the environment, and the student app driven end to end on phone and desktop
@@ -237,6 +252,8 @@ Testing a lecture tool normally needs a lecture. These stand in for one:
 | `pnpm -F @lr/server smoke` | Drives a scripted 30-student class against a running server and asserts the protocol end to end: code format, presence, burst grouping, rate limits, upvotes, poll tallies, resolve, end-of-class, and rejoin-after-end. Requires the server to already be running. |
 | `pnpm -F @lr/server simulate <CODE>` | Joins 24 simulated students to a live class: posts four questions with different vote weights, answers any understanding check, and keeps reaction waves flowing. Use it to exercise the overlay without 24 phones. |
 | `pnpm -F @lr/server test:lan` | Ranks synthetic macOS/Windows/Linux interface tables and asserts the right address wins in each — VM bridges, WSL, Docker and VPN adapters must all lose to the real Wi-Fi. Runs without a server. |
+| `pnpm test:tools` | Tests platform selection, shell-free command arguments, package entrypoints, and IPv6-disabled port handling. |
+| `pnpm build:desktop` | Builds student assets and the standalone server, then compiles and packages the desktop app for the current OS. |
 | `pnpm build:server-binary` | Compiles the server into a single self-contained executable for the desktop bundle. Downloads an official node into `tools/.cache` on first run. |
 | `pnpm icon` | Regenerates the app icon from the pixel grid in `tools/make-icon.mjs` and expands it to every platform size. Tauri needs `src-tauri/icons/32x32.png` at compile time — if it is missing, the **Rust** build fails with `failed to open icon`, which looks unrelated to icons at first glance. |
 
@@ -448,9 +465,9 @@ does not yet choose which monitor it covers.
 input-region concept rather than a window flag, so `set_ignore_cursor_events` may
 not behave the same way. X11 should be closer to macOS behaviour.
 
-None of this is speculation about the code — it compiles for these targets. It is
-untested runtime behaviour, and worth an hour on the actual machine before a lecture
-depends on it.
+Native Windows and Linux builds and runtime behaviour remain unverified. Test on
+the intended operating system and presentation setup before relying on the overlay
+for a lecture.
 
 ## Troubleshooting
 
