@@ -1,6 +1,7 @@
 /** Where the realtime server lives, and how students reach it. */
 
-const DEFAULT_ORIGIN = 'http://localhost:8787';
+// Numeric loopback: `localhost` can resolve to ::1 first and reach a different process.
+const DEFAULT_ORIGIN = 'http://127.0.0.1:8787';
 
 export function serverOrigin(): string {
   const raw = import.meta.env.VITE_SERVER_URL ?? DEFAULT_ORIGIN;

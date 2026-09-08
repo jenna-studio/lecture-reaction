@@ -17,6 +17,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/**
+ * `--quiet`: report foreign processes but exit 0. Used by `pnpm desktop`, which
+ * resolves a different port instead of demanding the other project stop.
+ */
+const QUIET = process.argv.includes('--quiet');
 const PORTS = process.argv.slice(2).map(Number).filter(Boolean);
 if (PORTS.length === 0) PORTS.push(5174, 8787, 5173);
 
@@ -78,12 +83,22 @@ for (const port of PORTS) {
         blocked = true;
       }
     } else {
+      const project = /\/([^/]+)\/node_modules\//.exec(cmd)?.[1];
       console.error(
-        `[free-ports] :${port} is held by something outside this repo (pid ${pid}):\n` +
-        `             ${cmd.slice(0, 120)}\n` +
-        `             Stop it yourself, or set PORT= to use a different port.`,
+        `[free-ports] :${port} is held by another project${project ? ` (${project})` : ''}, pid ${pid}:\n` +
+        `             ${cmd.slice(0, 110)}`,
       );
-      blocked = true;
+      if (QUIET) {
+        console.error(`             Leaving it alone; a different port will be used.`);
+      } else {
+        console.error(
+          `             Leave it running and start with a different port, e.g.\n` +
+          `               PORT=8788 pnpm dev:web        (realtime server)\n` +
+          `               LR_OVERLAY_PORT=5175 pnpm dev (overlay webview)\n` +
+          `             or stop it with:  kill ${pid}`,
+        );
+        blocked = true;
+      }
     }
   }
 }
