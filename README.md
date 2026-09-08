@@ -65,7 +65,7 @@ sentiment grid, they **stay visible in Quiet Mode** when sentiment is hidden, an
 surge from just two students, because if two people cannot hear then nobody in the back row
 can.
 
-All seven are defined once in `REACTION_META` in `packages/shared`; the server, the student app
+All eight are defined once in `REACTION_META` in `packages/shared`; the server, the student app
 and the overlay all derive from it, so adding or changing one is a single edit.
 
 ## Repo layout
@@ -77,12 +77,16 @@ lecture-reaction/
 │   │                code.ts (class-code generation/normalisation),
 │   │                theme.css (retro pixel design tokens)
 │   └── server/      Node 20 + ws realtime server; also serves the student app
+│       └── test/        smoke.mjs, simulate-class.mjs, lan.mjs
 ├── apps/
 │   ├── student/     Vite + React web app — what students open on their phone
 │   └── overlay/     Tauri v2 + React — the professor's desktop overlay
 │       └── src-tauri/   Rust shell: transparent window, click-through, sidecar
-├── tools/           build-server-binary.mjs (standalone server), make-icon.mjs,
-│                    free-ports.mjs (dev preflight)
+│           ├── schemas/     vendored tauri.conf.json schema (editor only)
+│           └── binaries/    the standalone server sidecar (built, gitignored)
+├── tools/           dev-desktop.mjs (port-resolving launcher), free-ports.mjs,
+│                    build-server-binary.mjs, make-icon.mjs
+├── .vscode/         hides target/ and caches from the tree and search
 └── docs/
     └── ARCHITECTURE.md
 ```
@@ -124,19 +128,39 @@ pnpm tauri dev   # desktop app alone — only useful if a server is already runn
 
 Ports:
 
-| Port | What |
+| Port (default) | What |
 | --- | --- |
 | `8787` | Realtime server — WebSocket endpoint and the student app over HTTP |
 | `5173` | Vite dev server for `apps/student` |
 | `5174` | Vite dev server for the overlay webview, which Tauri loads |
+
+These are defaults, not requirements: if another project already holds one, `pnpm desktop`
+picks the next free port and wires everything to it (details just below).
 
 The server works out the address students should use **every time it is asked**, so it
 follows whatever network you are on. See [Getting students in](#getting-students-in).
 
 All three dev commands run `tools/free-ports.mjs` first, which reclaims ports `8787`/
 `5173`/`5174` and stops leftover overlay instances — but **only processes belonging to
-this checkout**. Anything else holding a port is named and the run stops, rather than
-being killed out from under you.
+this checkout**. Anything else holding a port is left alone and named.
+
+`pnpm desktop` then goes further: if another project already owns a port, it steps to
+the next free one and threads the choice through to everything that needs it — the
+server's `PORT`, the overlay's `LR_OVERLAY_PORT`, `VITE_SERVER_URL`, and Tauri's
+`devUrl` (overridden for that run only). You never have to stop your other work.
+
+| Variable | Default | Sets |
+| --- | --- | --- |
+| `PORT` | `8787` | the realtime server |
+| `LR_OVERLAY_PORT` | `5174` | the overlay's vite dev server (Tauri loads this) |
+| `LR_STUDENT_PORT` | `5173` | the student app's vite dev server (not strict — vite may take the next one) |
+
+A port is only considered free when it can be bound on **both** `127.0.0.1` and `::1`.
+Checking IPv4 alone is a trap that this codebase already fell into once: another
+project's vite bound to `[::1]:5174` left `0.0.0.0:5174` bindable, both servers came
+up on the same number, and because `localhost` resolves to `::1` first on macOS, the
+Tauri window loaded the *other* project. For the same reason every internal URL uses
+`127.0.0.1` rather than `localhost`.
 
 Other root scripts: `pnpm build`, `pnpm typecheck`, `pnpm tauri`, `pnpm icon`,
 `pnpm build:server-binary`.
@@ -175,7 +199,9 @@ bundles building, the Tauri shell compiling and **launching**, the server smoke 
 against a live 30-student session, the standalone server binary serving with no Node
 in the environment, and the student app driven end to end on phone and desktop
 viewports (auto-join from a QR link, react, ask, upvote, see a question resolved,
-watch a surge fire on the overlay).
+watch a surge fire on the overlay). Port resolution was verified against a real
+clash: with another project's vite on `[::1]:5174`, `pnpm desktop` stepped to 5175,
+the Tauri webview served Lecture React, and the other project was left untouched.
 
 Not verified anywhere: the overlay's **transparency, always-on-top and click-through
 behaviour over a real presentation**. The window runs, but whether it floats above a
@@ -212,7 +238,8 @@ One detail worth keeping: `free-ports.mjs` matches `-sTCP:LISTEN` only. A plain
 killing everything it returns kills the app you are trying to start.
 
 To review the overlay's layout without building the desktop app, open
-`http://localhost:5174/?window=launcher` (or `?window=overlay`) in a browser.
+`http://127.0.0.1:5174/?window=launcher` (or `?window=overlay`) in a browser — use
+whatever port the launcher printed if 5174 was taken.
 Tauri calls are feature-detected, so the overlay renders against a placeholder
 slide backdrop instead of a transparent window.
 
@@ -422,7 +449,8 @@ depends on it.
 
 | Symptom | Cause |
 | --- | --- |
-| `Port 5174 is already in use` | A previous run left a dev server behind. The dev commands clear this automatically, so it should not recur — if it does, something outside this repo holds the port and the preflight names it. |
+| `Port 5174 is already in use` | A previous run of *this* repo left a dev server behind — cleared automatically. If another project holds it, `pnpm desktop` steps to the next port on its own; `pnpm dev` names the process and suggests `LR_OVERLAY_PORT=5175`. |
+| The overlay window shows a different app | Two servers on one port number on different IP stacks, and `localhost` picked the wrong one. Fixed by dual-stack probing and `127.0.0.1` addressing; if it recurs, check `lsof -nP -iTCP:5174 -sTCP:LISTEN` for an `IPv6` row that is not yours. |
 | Several overlay windows on screen | Stale app instances from earlier runs. Killing the dev servers does not stop an already-running Tauri binary. The preflight now stops them too. |
 | Overlay shows an old class code | The overlay follows the session the launcher persists and re-attaches within 400ms of a new class starting. If it sticks, the launcher never wrote a new session — check that START CLASS actually got a code. |
 | Built `.app` hangs on `... STARTING...` | The bundle has no server in it. Run `pnpm build:server-binary` **before** `pnpm tauri build`. |
