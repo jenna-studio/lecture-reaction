@@ -52,8 +52,8 @@ function targetTriple() {
 }
 
 /** Returns a path to an official node binary that supports SEA injection. */
-async function officialNode() {
-  const { arch, os, extension } = nodePlatform();
+async function officialNode(platform = process.platform, architecture = process.arch) {
+  const { arch, os, extension } = nodePlatform(platform, architecture);
   const name = `node-${NODE_VERSION}-${os}-${arch}`;
   const cached = join(CACHE, name, 'bin', `node${extension}`);
   if (existsSync(cached)) return cached;
@@ -79,13 +79,13 @@ async function officialNode() {
   return cached;
 }
 
-const triple = targetTriple();
-const { extension } = nodePlatform();
+const host = targetTriple();
+const triple = process.env.LR_BUILD_TARGET || process.env.TAURI_ENV_TARGET_TRIPLE || host;
+const crossWindows = triple === 'x86_64-pc-windows-msvc' && host !== triple;
+if (triple !== host && !crossWindows) throw new Error(`Unsupported cross-build target: ${triple}`);
 const expectedArch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
-const requestedTarget = process.env.TAURI_ENV_TARGET_TRIPLE;
-if (!triple.startsWith(`${expectedArch}-`) || (requestedTarget && requestedTarget !== triple)) {
-  throw new Error('Build on the target OS with Node and Rust using the same architecture. Cross-compiling the server is not supported.');
-}
+if (!host.startsWith(`${expectedArch}-`)) throw new Error('Node and the Rust host must use the same architecture.');
+const extension = triple.includes('windows') ? '.exe' : '';
 const outFile = join(OUT_DIR, `lr-server-${triple}${extension}`);
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -117,6 +117,8 @@ writeFileSync(
     main: join(WORK, 'server.cjs'),
     output: join(WORK, 'server.blob'),
     disableExperimentalSEAWarning: true,
+    useCodeCache: false,
+    useSnapshot: false,
   }),
 );
 run(baseNode, ['--experimental-sea-config', join(WORK, 'sea-config.json')]);
@@ -125,9 +127,9 @@ console.log('[3/4] injecting into a copy of the node binary');
 // The node binary is mode 555, so a previous run leaves an unwritable file
 // here and copyFileSync would fail with EACCES.
 rmSync(outFile, { force: true });
-copyFileSync(baseNode, outFile);
+copyFileSync(crossWindows ? await officialNode('win32', 'x64') : baseNode, outFile);
 chmodSync(outFile, 0o755);
-if (process.platform === 'darwin') {
+if (process.platform === 'darwin' && !crossWindows) {
   // The copied binary carries Node's signature, which no longer matches once
   // the blob is injected. Strip it now and re-sign after.
   run('codesign', ['--remove-signature', outFile]);
@@ -137,9 +139,9 @@ run(process.execPath, [packageCli('postject', 'postject'),
   'NODE_SEA_BLOB',
   join(WORK, 'server.blob'),
   '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
-  ...(process.platform === 'darwin' ? ['--macho-segment-name', 'NODE_SEA'] : []),
+  ...(process.platform === 'darwin' && !crossWindows ? ['--macho-segment-name', 'NODE_SEA'] : []),
 ]);
-if (process.platform === 'darwin') {
+if (process.platform === 'darwin' && !crossWindows) {
   run('codesign', ['--sign', '-', outFile]);
 }
 

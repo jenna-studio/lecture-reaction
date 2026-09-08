@@ -177,7 +177,7 @@ and student web assets are generated before Tauri compiles and packages the app;
 no manual sidecar build is needed. `pnpm desktop` also prepares missing files on
 a fresh checkout.
 
-Build on the destination operating system: macOS produces a `.app`/`.dmg`, Windows
+For standard installers, build on the destination operating system: macOS produces a `.app`/`.dmg`, Windows
 produces native Windows installers, and Linux produces Linux packages. Use matching
 x64 or arm64 Node and Rust toolchains and install the Tauri prerequisites above.
 The first server build downloads an official Node executable and needs internet
@@ -442,7 +442,7 @@ Work down this list; it is roughly in order of likelihood.
 | | Server | Student app | Professor overlay |
 | --- | --- | --- | --- |
 | macOS | works | works | **verified running**, click-through untested over a real presentation |
-| Windows | should work | works | compiles in principle, never built or run |
+| Windows | x64 executable built; runtime unverified | web build verified | x64 portable release built; runtime unverified |
 | Linux | should work | works | compiles in principle, never built or run |
 
 The server and the student app are the easy half: Node and a browser. The address
@@ -465,7 +465,8 @@ does not yet choose which monitor it covers.
 input-region concept rather than a window flag, so `set_ignore_cursor_events` may
 not behave the same way. X11 should be closer to macOS behaviour.
 
-Native Windows and Linux builds and runtime behaviour remain unverified. Test on
+The Windows x64 portable build is verified; Windows runtime behaviour and native
+Linux builds remain unverified. Test on
 the intended operating system and presentation setup before relying on the overlay
 for a lecture.
 
@@ -490,3 +491,48 @@ for a lecture.
 and why CSS `pointer-events` cannot do it, the two-stage reaction burst grouping, the data model
 and its future Postgres shape, the privacy boundary, the design system tokens, every rate limit
 and its rationale, and what is deliberately out of scope.
+
+## Portable Windows app for a USB drive
+
+Build a folder and ZIP for **x64 Windows 10/11**:
+
+```bash
+pnpm build:windows:portable
+```
+
+The output is `dist/Lecture-React-Windows-x64-Portable.zip`. Extract it onto a
+writable USB drive and double-click `Lecture React.exe`. Keep the entire folder
+together: the executable needs `lr-server.exe` and `student/` alongside it.
+No Node, pnpm, Rust, or application installation is needed on the classroom PC.
+The `portable.txt` marker makes both app windows use the adjacent `Data/` folder
+for settings and browser storage. Quit before ejecting the drive. Live classes
+are in memory; they do not travel between computers or survive quitting.
+
+WebView2 Runtime must be available on the destination PC. To include an offline
+runtime, download and extract Microsoft's **x64 Fixed Version WebView2 Runtime**,
+then set `LR_WEBVIEW2_DIR` to the folder containing `msedgewebview2.exe` when
+building. The build copies it into `WebView2/`; the app selects it automatically.
+Keep that bundled runtime updated when rebuilding. See Microsoft's
+[WebView2 distribution guidance](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+
+Students must be on a reachable network, and Windows Firewall must permit the
+server's incoming connections. Managed PCs can block USB applications or network
+access. The executable is unsigned. Portability cannot guarantee execution on
+every computer; test the intended PC and PowerPoint presentation setup first.
+
+Build hosts need the standard project dependencies and Rust. On macOS/Linux,
+install `cargo-xwin` and the `x86_64-pc-windows-msvc` Rust target; this command
+cross-compiles locally without starting GitHub Actions. The server uses an official
+Windows Node binary with a SEA blob generated using the same Node version and
+with snapshots/code cache disabled, as required for cross-platform SEA generation.
+Windows builds use matching x64 Node and MSVC Rust toolchains.
+
+Portable build verification on 2026-09-08 (cross-built on Apple Silicon macOS):
+
+- Windows x64 release compilation completed with `cargo-xwin`.
+- Both the GUI executable and bundled server identify as Windows x64 PE binaries.
+- The portable ZIP passed its archive integrity check (approximately 36 MB).
+- Workspace typechecking and all three tooling tests passed.
+- This ZIP uses the installed WebView2 runtime; no fixed runtime is included.
+- Windows execution, USB-local storage behaviour, firewall access, and the
+  PowerPoint overlay still need an actual Windows PC test.

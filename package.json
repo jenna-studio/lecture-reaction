@@ -16,7 +16,8 @@
     "desktop": "node tools/free-ports.mjs 8787 5174 --quiet && node tools/dev-desktop.mjs",
     "build:server-binary": "node tools/build-server-binary.mjs",
     "build:desktop": "pnpm tauri build",
-    "test:tools": "node --test tools/platform.test.mjs"
+    "test:tools": "node --test tools/platform.test.mjs",
+    "build:windows:portable": "node tools/build-windows-portable.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

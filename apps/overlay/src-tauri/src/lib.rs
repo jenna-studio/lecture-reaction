@@ -384,6 +384,12 @@ fn start_server(app: &AppHandle) -> Option<std::process::Child> {
         cmd.env("LECTURE_STUDENT_DIST", dist);
     }
 
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: no server console over slides.
+    }
+
     match cmd.spawn() {
         Ok(child) => {
             println!("[lecture-react] started bundled server (pid {})", child.id());
@@ -397,6 +403,18 @@ fn start_server(app: &AppHandle) -> Option<std::process::Child> {
 }
 
 pub fn run() {
+    // Set before Tauri creates either webview. Both windows share USB-local storage.
+    #[cfg(windows)]
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            if dir.join("portable.txt").is_file() {
+                std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", dir.join("Data"));
+                if dir.join("WebView2/msedgewebview2.exe").is_file() {
+                    std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", dir.join("WebView2"));
+                }
+            }
+        }
+    }
     tauri::Builder::default()
         .manage(OverlayState::default())
         .plugin(
