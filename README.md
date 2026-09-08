@@ -14,6 +14,48 @@ votes; the professor clears them with a checkmark and can fire a one-click under
 No student install. No login on either side. No dashboard — the overlay **is** the professor
 interface, and nobody ever looks away from the slides.
 
+## Download and run on Windows
+
+Open [GitHub Releases](https://github.com/jenna-studio/lecture-reaction/releases)
+and choose a release with `Lecture-React-Windows-x64-Portable.zip` attached.
+Windows testing builds are marked **Pre-release**. If no ZIP is listed yet, it
+has not been uploaded; maintainers can use the [release instructions](#publish-a-github-release-without-actions) below.
+
+1. Download the ZIP and **extract the entire folder** onto your desktop or a
+   writable USB drive. Do not run the app from inside the ZIP preview.
+2. Open **Lecture React.exe**. Keep `lr-server.exe`, `student/`, and
+   `portable.txt` beside it.
+3. Connect the presentation computer and students to the same reachable network.
+   If Windows Firewall asks, allow the server on your trusted classroom network.
+4. Start a class and share its QR code or join link.
+5. Quit the app before safely ejecting the USB drive.
+
+Requires **64-bit Windows 10/11** and
+[Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+The current ZIP does not include WebView2. No app installation, Node.js, pnpm,
+or Rust is needed on the presentation computer. Managed computers may block
+unsigned apps, USB executables, or incoming network connections.
+
+The portable edition is configured to keep settings and browser storage in a
+`Data/` folder beside the executable. Active classes and questions are held in
+memory and end when the app closes; moving the USB drive does not move a live class.
+The Windows binaries have been built and packaged, but execution on a Windows PC
+and the PowerPoint overlay still need testing.
+
+### Windows testing checklist
+
+- Open the app, start a class, and join from a phone on the same network.
+- Send reactions and questions, vote on a question, and resolve it in the overlay.
+- Run a PowerPoint slideshow and check visibility and click-through outside the
+  app controls. `Ctrl+Shift+L` toggles Interaction Mode.
+- Change a setting, quit, and reopen to check persistence. For USB testing, repeat
+  from the USB folder and confirm that `Data/` is created there.
+- Quit and reopen to check that the bundled server shuts down cleanly.
+
+Report the Windows version, whether the app ran from desktop or USB, and any
+exact error message or screenshot. Share the ZIP through a download link if an
+email provider rejects its size or executable contents.
+
 ## What the overlay looks like
 
 ```
@@ -231,8 +273,9 @@ fullscreen Keynote — macOS Spaces are the usual failure — and whether clicks
 the app underneath is untested. That is the first thing to check, and
 `CmdOrCtrl+Shift+L` is the escape hatch if the overlay ever swallows your clicks.
 
-Also not verified: the packaged `.app` end to end with the sidecar, and Windows and
-Linux entirely.
+Also not verified: the packaged `.app` end to end with the sidecar, Windows
+runtime behaviour, and native Linux builds/runtime. The Windows x64 portable
+release has been cross-built and its ZIP checked; see the portable build details below.
 
 ## Keyboard shortcuts
 
@@ -536,3 +579,65 @@ Portable build verification on 2026-09-08 (cross-built on Apple Silicon macOS):
 - This ZIP uses the installed WebView2 runtime; no fixed runtime is included.
 - Windows execution, USB-local storage behaviour, firewall access, and the
   PowerPoint overlay still need an actual Windows PC test.
+
+## Publish a GitHub release without Actions
+
+The Windows ZIP is built locally and uploaded directly with GitHub CLI. No hosted
+build runner is needed. The commands below publish a testing pre-release; they do
+not claim that Windows runtime testing has passed.
+
+First commit the source changes used for the build. Run the following from the
+repository root in macOS/Linux with GitHub CLI authenticated (`gh auth login`).
+Choose an unused tag for each release; `v0.1.0-beta.1` is the example below.
+
+The first API call **disables all GitHub Actions for this repository** before the
+push and release, so event-triggered workflows cannot consume runner minutes.
+It requires repository admin permission and leaves Actions disabled until you
+re-enable them in repository settings. The block stops if a command fails.
+
+```bash
+(
+  set -e
+  gh api --method PUT \
+    repos/jenna-studio/lecture-reaction/actions/permissions \
+    -F enabled=false
+
+  test -z "$(git status --porcelain)" || {
+    echo "Commit the source changes before building and publishing."
+    exit 1
+  }
+
+  pnpm build:windows:portable
+  git push origin HEAD
+
+  cat > /tmp/lecture-react-release-notes.md <<'NOTES'
+Portable Windows test release.
+
+Extract the entire ZIP and open Lecture React.exe. Keep all included files together.
+Run from a desktop folder or writable USB drive. No app installation, Node.js, or Rust is required.
+
+Requires 64-bit Windows 10/11 and Microsoft Edge WebView2 Runtime.
+Students need a reachable shared network and firewall permission for server connections.
+Settings use the adjacent Data folder. Active classes end when the app closes.
+
+This build is unsigned. Windows execution and PowerPoint overlay behavior still need testing.
+NOTES
+
+  gh release create v0.1.0-beta.1 \
+    "dist/Lecture-React-Windows-x64-Portable.zip" \
+    --repo jenna-studio/lecture-reaction \
+    --target "$(git rev-parse HEAD)" \
+    --title "Lecture React v0.1.0 Beta 1 - Windows Portable" \
+    --prerelease \
+    --notes-file /tmp/lecture-react-release-notes.md
+)
+```
+
+If the ZIP was already built from the committed source, skip the
+`pnpm build:windows:portable` line to reuse it. Share the release page after the
+upload succeeds. Private repositories require testers to have repository access.
+GitHub's automatic source-code archives are not the portable app: testers should
+choose the attached `Lecture-React-Windows-x64-Portable.zip`.
+
+References: [GitHub CLI release creation](https://cli.github.com/manual/gh_release_create)
+and [repository Actions permissions](https://docs.github.com/en/rest/actions/permissions#set-github-actions-permissions-for-a-repository).
