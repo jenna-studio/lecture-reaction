@@ -168,13 +168,20 @@ Other root scripts: `pnpm build`, `pnpm typecheck`, `pnpm tauri`, `pnpm icon`,
 ### Building a double-clickable app
 
 ```bash
-pnpm build:server-binary    # bundle the server into one executable (~108 MB)
-pnpm tauri build            # -> Lecture React.app + a .dmg
+pnpm install
+pnpm build:desktop         # builds the student app, server, and native installer
 ```
 
-**Run the first command before the second**, or you get an app that launches to a
-launcher window whose START CLASS hangs forever: the bundle would contain only the
-overlay, with no server for it to talk to.
+`pnpm tauri build` runs the same preparation automatically. The server executable
+and student web assets are generated before Tauri compiles and packages the app;
+no manual sidecar build is needed. `pnpm desktop` also prepares missing files on
+a fresh checkout.
+
+Build on the destination operating system: macOS produces a `.app`/`.dmg`, Windows
+produces native Windows installers, and Linux produces Linux packages. Use matching
+x64 or arm64 Node and Rust toolchains and install the Tauri prerequisites above.
+The first server build downloads an official Node executable and needs internet
+access; subsequent builds reuse the cache. A macOS app cannot run on Windows.
 
 `build:server-binary` compiles `packages/server` into a single self-contained
 executable with Node's SEA support, so the app runs on a machine with **no Node
@@ -453,7 +460,7 @@ depends on it.
 | The overlay window shows a different app | Two servers on one port number on different IP stacks, and `localhost` picked the wrong one. Fixed by dual-stack probing and `127.0.0.1` addressing; if it recurs, check `lsof -nP -iTCP:5174 -sTCP:LISTEN` for an `IPv6` row that is not yours. |
 | Several overlay windows on screen | Stale app instances from earlier runs. Killing the dev servers does not stop an already-running Tauri binary. The preflight now stops them too. |
 | Overlay shows an old class code | The overlay follows the session the launcher persists and re-attaches within 400ms of a new class starting. If it sticks, the launcher never wrote a new session — check that START CLASS actually got a code. |
-| Built `.app` hangs on `... STARTING...` | The bundle has no server in it. Run `pnpm build:server-binary` **before** `pnpm tauri build`. |
+| Desktop build reports a missing `lr-server` binary or student resources | Run `pnpm build:desktop`; its preparation hook generates both before packaging. If preparation fails, check the preceding download or toolchain error. |
 | Reactions appear on the left, not the bottom | A stored preference from an earlier version. Settings are versioned and reset once, so this should self-correct; otherwise pick Bottom in the gear menu. |
 | VS Code: `schema ... is untrusted` or `Missing property "permissions"` | Editor-only, never affects the build. `tauri.conf.json` points at the vendored `src-tauri/schemas/tauri-config.schema.json`; reload the window. Do not point it at `gen/schemas/desktop-schema.json` — that is the *capability* schema. |
 | Rust build fails with `failed to open icon` | The icon set is missing. `pnpm icon`. Tauri reads `icons/32x32.png` at compile time, so this surfaces as a Rust error rather than an asset one. |

@@ -17,13 +17,13 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 
-const REPO = new URL('..', import.meta.url).pathname;
+import { REPO, pnpmCommand, unavailableAddress } from './platform.mjs';
 
 /** True when `port` can be bound on `host`. */
 function canBind(port, host) {
   return new Promise((resolve) => {
     const probe = createServer();
-    probe.once('error', () => resolve(false));
+    probe.once('error', (error) => resolve(unavailableAddress(error, host)));
     probe.once('listening', () => probe.close(() => resolve(true)));
     probe.listen(port, host);
   });
@@ -73,27 +73,32 @@ const env = {
 const children = [];
 
 function run(name, args) {
-  const child = spawn('pnpm', args, { cwd: REPO, env, stdio: 'inherit' });
+  const [command, commandArgs] = pnpmCommand(args);
+  const child = spawn(command, commandArgs, { cwd: REPO, env, stdio: 'inherit' });
+  child.on('error', (error) => {
+    console.error(`[dev] could not start ${name}: ${error.message}`);
+    shutdown(1);
+  });
   child.on('exit', (code, signal) => {
     // Always say why: a silent exit here cascades into shutting everything down.
     console.error(`[dev] ${name} exited (code ${code ?? 'null'}, signal ${signal ?? 'none'})`);
-    shutdown();
+    shutdown(code ?? 1);
   });
   children.push(child);
   return child;
 }
 
 let shuttingDown = false;
-function shutdown() {
+function shutdown(code = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const child of children) child.kill('SIGTERM');
   // The Tauri binary can outlive its parent; give it a moment, then leave.
-  setTimeout(() => process.exit(0), 500).unref();
+  setTimeout(() => process.exit(code), 500).unref();
 }
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => shutdown());
+process.on('SIGTERM', () => shutdown());
 
 run('server', ['-F', '@lr/server', 'dev']);
 run('tauri', [

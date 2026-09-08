@@ -18,6 +18,8 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { nodePlatform, packageCli } from './platform.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(REPO, 'apps/overlay/src-tauri/binaries');
@@ -50,47 +52,63 @@ function targetTriple() {
 }
 
 /** Returns a path to an official node binary that supports SEA injection. */
-function officialNode() {
-  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-  const os = process.platform === 'darwin' ? 'darwin' : 'linux';
+async function officialNode() {
+  const { arch, os, extension } = nodePlatform();
   const name = `node-${NODE_VERSION}-${os}-${arch}`;
-  const cached = join(CACHE, name, 'bin', 'node');
+  const cached = join(CACHE, name, 'bin', `node${extension}`);
   if (existsSync(cached)) return cached;
 
   mkdirSync(CACHE, { recursive: true });
-  const url = `https://nodejs.org/dist/${NODE_VERSION}/${name}.tar.gz`;
+  const url = os === 'win'
+    ? `https://nodejs.org/dist/${NODE_VERSION}/win-${arch}/node.exe`
+    : `https://nodejs.org/dist/${NODE_VERSION}/${name}.tar.gz`;
   console.log(`      fetching ${url}`);
-  run('curl', ['-fsSL', '-o', join(CACHE, `${name}.tar.gz`), url]);
-  run('tar', ['-xzf', join(CACHE, `${name}.tar.gz`), '-C', CACHE]);
-  rmSync(join(CACHE, `${name}.tar.gz`), { force: true });
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Node download failed: HTTP ${response.status} (${url})`);
+  const downloaded = Buffer.from(await response.arrayBuffer());
+  if (os === 'win') {
+    mkdirSync(dirname(cached), { recursive: true });
+    writeFileSync(cached, downloaded);
+  } else {
+    const archive = join(CACHE, `${name}.tar.gz`);
+    writeFileSync(archive, downloaded);
+    run('tar', ['-xzf', archive, '-C', CACHE]);
+    rmSync(archive, { force: true });
+  }
   if (!existsSync(cached)) throw new Error(`extracted archive has no ${cached}`);
   return cached;
 }
 
 const triple = targetTriple();
-const outFile = join(OUT_DIR, `lr-server-${triple}`);
+const { extension } = nodePlatform();
+const expectedArch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
+const requestedTarget = process.env.TAURI_ENV_TARGET_TRIPLE;
+if (!triple.startsWith(`${expectedArch}-`) || (requestedTarget && requestedTarget !== triple)) {
+  throw new Error('Build on the target OS with Node and Rust using the same architecture. Cross-compiling the server is not supported.');
+}
+const outFile = join(OUT_DIR, `lr-server-${triple}${extension}`);
 
 mkdirSync(OUT_DIR, { recursive: true });
 rmSync(WORK, { recursive: true, force: true });
 mkdirSync(WORK, { recursive: true });
 
 console.log('[1/4] bundling server -> single file');
-run(join(REPO, 'packages/server/node_modules/.bin/esbuild'), [
-  join(REPO, 'packages/server/src/index.ts'),
-  '--bundle',
-  '--platform=node',
-  '--target=node20',
-  '--format=cjs',
+const require = createRequire(new URL('../packages/server/package.json', import.meta.url));
+await require('esbuild').build({
+  entryPoints: [join(REPO, 'packages/server/src/index.ts')],
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  format: 'cjs',
   // `ws` optionally requires these native speedups; the pure-JS fallback is fine.
-  '--external:bufferutil',
-  '--external:utf-8-validate',
-  `--outfile=${join(WORK, 'server.cjs')}`,
-]);
+  external: ['bufferutil', 'utf-8-validate'],
+  outfile: join(WORK, 'server.cjs'),
+});
 
 // The blob is version-locked to the node that produced it: generating with the
 // system node and injecting into a different build fails at startup with
 // "v8::ToLocalChecked Empty MaybeLocal". Use one node for both steps.
-const baseNode = officialNode();
+const baseNode = await officialNode();
 
 console.log('[2/4] generating SEA blob');
 writeFileSync(
@@ -114,7 +132,7 @@ if (process.platform === 'darwin') {
   // the blob is injected. Strip it now and re-sign after.
   run('codesign', ['--remove-signature', outFile]);
 }
-run(join(REPO, 'packages/server/node_modules/.bin/postject'), [
+run(process.execPath, [packageCli('postject', 'postject'),
   outFile,
   'NODE_SEA_BLOB',
   join(WORK, 'server.blob'),

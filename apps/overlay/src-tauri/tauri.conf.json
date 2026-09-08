@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.lecturereact.overlay",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "node ../../tools/prepare-desktop.mjs --dev && pnpm dev",
     "devUrl": "http://127.0.0.1:5174",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "node ../../tools/prepare-desktop.mjs",
     "frontendDist": "../dist"
   },
   "app": {

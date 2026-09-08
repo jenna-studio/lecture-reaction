@@ -14,7 +14,9 @@
     "tauri": "pnpm -F @lr/overlay tauri",
     "icon": "node tools/make-icon.mjs tools/icon-src.png && pnpm -F @lr/overlay exec tauri icon ../../tools/icon-src.png",
     "desktop": "node tools/free-ports.mjs 8787 5174 --quiet && node tools/dev-desktop.mjs",
-    "build:server-binary": "node tools/build-server-binary.mjs"
+    "build:server-binary": "node tools/build-server-binary.mjs",
+    "build:desktop": "pnpm tauri build",
+    "test:tools": "node --test tools/platform.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
