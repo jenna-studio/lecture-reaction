@@ -1,7 +1,7 @@
 {
   "$schema": "schemas/tauri-config.schema.json",
   "productName": "Lecture React",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.lecturereact.overlay",
   "build": {
     "beforeDevCommand": "node ../../tools/prepare-desktop.mjs --dev && pnpm dev",
