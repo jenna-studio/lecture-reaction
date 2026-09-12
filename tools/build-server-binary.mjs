@@ -10,6 +10,9 @@
  *
  * The output is named for Tauri's sidecar convention:
  *   binaries/lr-server-<rust target triple>
+ *
+ * `LR_BUILD_TARGET=universal-apple-darwin` builds both macOS architectures and
+ * joins them with `lipo`, so one `.app` runs on Apple Silicon and Intel.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -81,10 +84,15 @@ async function officialNode(platform = process.platform, architecture = process.
 
 const host = targetTriple();
 const triple = process.env.LR_BUILD_TARGET || process.env.TAURI_ENV_TARGET_TRIPLE || host;
+const universal = triple === 'universal-apple-darwin';
 const crossWindows = triple === 'x86_64-pc-windows-msvc' && host !== triple;
-if (triple !== host && !crossWindows) throw new Error(`Unsupported cross-build target: ${triple}`);
+if (universal && !host.endsWith('-apple-darwin')) {
+  throw new Error('A universal macOS sidecar can only be built on macOS.');
+}
+if (!universal && triple !== host && !crossWindows) throw new Error(`Unsupported cross-build target: ${triple}`);
 const expectedArch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
 if (!host.startsWith(`${expectedArch}-`)) throw new Error('Node and the Rust host must use the same architecture.');
+const macho = universal || (process.platform === 'darwin' && !crossWindows);
 const extension = triple.includes('windows') ? '.exe' : '';
 const outFile = join(OUT_DIR, `lr-server-${triple}${extension}`);
 
@@ -108,6 +116,7 @@ await require('esbuild').build({
 // The blob is version-locked to the node that produced it: generating with the
 // system node and injecting into a different build fails at startup with
 // "v8::ToLocalChecked Empty MaybeLocal". Use one node for both steps.
+// It is not architecture-locked, so the same blob serves every slice.
 const baseNode = await officialNode();
 
 console.log('[2/4] generating SEA blob');
@@ -123,27 +132,50 @@ writeFileSync(
 );
 run(baseNode, ['--experimental-sea-config', join(WORK, 'sea-config.json')]);
 
-console.log('[3/4] injecting into a copy of the node binary');
-// The node binary is mode 555, so a previous run leaves an unwritable file
-// here and copyFileSync would fail with EACCES.
-rmSync(outFile, { force: true });
-copyFileSync(crossWindows ? await officialNode('win32', 'x64') : baseNode, outFile);
-chmodSync(outFile, 0o755);
-if (process.platform === 'darwin' && !crossWindows) {
+/**
+ * Copies an official node and injects the blob into it. Signing is left to the
+ * caller: a universal build has to sign the finished fat binary, because `lipo`
+ * would invalidate signatures applied to the slices beforehand.
+ */
+function inject(source, destination) {
+  // The node binary is mode 555, so a previous run leaves an unwritable file
+  // here and copyFileSync would fail with EACCES.
+  rmSync(destination, { force: true });
+  copyFileSync(source, destination);
+  chmodSync(destination, 0o755);
   // The copied binary carries Node's signature, which no longer matches once
   // the blob is injected. Strip it now and re-sign after.
-  run('codesign', ['--remove-signature', outFile]);
+  if (macho) run('codesign', ['--remove-signature', destination]);
+  run(process.execPath, [packageCli('postject', 'postject'),
+    destination,
+    'NODE_SEA_BLOB',
+    join(WORK, 'server.blob'),
+    '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
+    ...(macho ? ['--macho-segment-name', 'NODE_SEA'] : []),
+  ]);
 }
-run(process.execPath, [packageCli('postject', 'postject'),
-  outFile,
-  'NODE_SEA_BLOB',
-  join(WORK, 'server.blob'),
-  '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
-  ...(process.platform === 'darwin' && !crossWindows ? ['--macho-segment-name', 'NODE_SEA'] : []),
-]);
-if (process.platform === 'darwin' && !crossWindows) {
-  run('codesign', ['--sign', '-', outFile]);
+
+/** Ad-hoc signing is enough to run locally; Gatekeeper still warns on first open. */
+const sign = (file) => { if (macho) run('codesign', ['--force', '--sign', '-', file]); };
+
+console.log('[3/4] injecting into a copy of the node binary');
+rmSync(outFile, { force: true });
+if (universal) {
+  // Tauri compiles each architecture separately and expects a sidecar named for
+  // each one, so both thin builds ship alongside the combined binary.
+  const slices = [];
+  for (const [arch, slice] of [['arm64', 'aarch64-apple-darwin'], ['x64', 'x86_64-apple-darwin']]) {
+    const thin = join(OUT_DIR, `lr-server-${slice}`);
+    inject(await officialNode('darwin', arch), thin);
+    sign(thin);
+    slices.push(thin);
+  }
+  run('lipo', ['-create', ...slices, '-output', outFile]);
+  chmodSync(outFile, 0o755);
+} else {
+  inject(crossWindows ? await officialNode('win32', 'x64') : baseNode, outFile);
 }
+sign(outFile);
 
 rmSync(WORK, { recursive: true, force: true });
 

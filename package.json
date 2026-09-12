@@ -17,7 +17,8 @@
     "build:server-binary": "node tools/build-server-binary.mjs",
     "build:desktop": "pnpm tauri build",
     "test:tools": "node --test tools/platform.test.mjs",
-    "build:windows:portable": "node tools/build-windows-portable.mjs"
+    "build:windows:portable": "node tools/build-windows-portable.mjs",
+    "build:macos:app": "node tools/build-macos-app.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

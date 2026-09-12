@@ -56,6 +56,29 @@ Report the Windows version, whether the app ran from desktop or USB, and any
 exact error message or screenshot. Share the ZIP through a download link if an
 email provider rejects its size or executable contents.
 
+## Download and run on macOS
+
+Open [GitHub Releases](https://github.com/jenna-studio/lecture-reaction/releases)
+and choose a release with `Lecture-React-macOS-Universal.zip` attached. It holds a
+single self-contained app: unzip it and drag **Lecture React.app** wherever you want it — Applications, the Desktop, an
+external drive. Nothing is installed, and no Node, pnpm, or Rust is needed on the
+presentation Mac.
+
+1. Unzip the archive and move **Lecture React.app** where you want it.
+2. **First open only:** right-click the app and choose **Open**, then click **Open**
+   in the warning dialog. The app is signed ad hoc, not notarized by Apple, so a
+   plain double-click is refused the first time. It works normally afterwards.
+3. If macOS says the app "is damaged and can't be opened", the download quarantined
+   it. Clear the flag and open it again:
+   `xattr -dr com.apple.quarantine "/path/to/Lecture React.app"`
+4. Allow incoming connections when macOS asks — students connect to this Mac.
+5. Start a class and share its QR code or join link.
+
+Runs on Apple Silicon and Intel Macs; both architectures are in the one app.
+Settings live in your home folder rather than inside the bundle, so copying the app
+to another Mac starts it fresh. Active classes and questions are held in memory and
+end when the app closes.
+
 ## What the overlay looks like
 
 ```
@@ -219,6 +242,14 @@ and student web assets are generated before Tauri compiles and packages the app;
 no manual sidecar build is needed. `pnpm desktop` also prepares missing files on
 a fresh checkout.
 
+`pnpm build:macos:app` packages the movable macOS app described above: it builds
+both Mac architectures, joins the Rust binary and the server sidecar with `lipo`,
+signs the bundle ad hoc, and writes `dist/Lecture-React-macOS-Universal.zip`. The
+archive is made with `ditto` rather than `zip`, because only `ditto` preserves the
+bundle's symlinks and executable bits — a `.app` unpacked from a mangled archive
+will not launch. Building it needs both the `aarch64-apple-darwin` and
+`x86_64-apple-darwin` Rust targets installed.
+
 For standard installers, build on the destination operating system: macOS produces a `.app`/`.dmg`, Windows
 produces native Windows installers, and Linux produces Linux packages. Use matching
 x64 or arm64 Node and Rust toolchains and install the Tauri prerequisites above.
@@ -254,6 +285,17 @@ Build portability checks on 2026-09-08 (Apple Silicon macOS):
 - The generated standalone server started successfully and returned HTTP 200 for
   `/health` and the student page.
 
+Universal macOS app checks on 2026-09-12 (built on Apple Silicon):
+
+- `pnpm build:macos:app` produced `Lecture React.app` and its ZIP (81 MB).
+- Both the app binary and the bundled server report `x86_64 arm64`, and the ad-hoc
+  signature verifies with `codesign --verify --deep --strict`.
+- Unpacked into an unrelated directory, the app launched **from that copy**,
+  started its own bundled server, and answered HTTP 200 on `/health` and on the
+  student page. Quitting it stopped the sidecar and released port 8787.
+- The Intel half has not been run on an actual Intel Mac; only its architecture,
+  signature and packaging are checked.
+
 These checks do not establish Windows/Linux runtime support or a complete desktop
 class session. The Windows/Linux cases in the tooling tests simulate platform
 selection; they do not run native Windows/Linux builds.
@@ -273,7 +315,7 @@ fullscreen Keynote — macOS Spaces are the usual failure — and whether clicks
 the app underneath is untested. That is the first thing to check, and
 `CmdOrCtrl+Shift+L` is the escape hatch if the overlay ever swallows your clicks.
 
-Also not verified: the packaged `.app` end to end with the sidecar, Windows
+Also not verified: a full class session through the packaged `.app`, Windows
 runtime behaviour, and native Linux builds/runtime. The Windows x64 portable
 release has been cross-built and its ZIP checked; see the portable build details below.
 
