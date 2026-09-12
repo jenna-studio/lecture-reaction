@@ -3,3 +3,10 @@
 # leaves a dangling reference (and a VS Code error) on a fresh clone.
 /gen/schemas/*
 !/gen/schemas/desktop-schema.json
+
+.codex/
+
+.vscode/
+
+.claude/
+
